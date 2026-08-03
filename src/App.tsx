@@ -19,7 +19,7 @@ const PROJECTS = [
       'A multi-role portal for managing radiation safety, lab inspections, hazardous waste, water quality, indoor environmental quality, hot-work permits, and laser compliance across a university campus.',
     tags: ['React', 'TypeScript', 'Tailwind CSS', 'Vite', 'Multi-role RBAC'],
     status: 'In Progress',
-    link: 'https://userwthethird.github.io/HSEO-Portal-Prototype/',
+    link: 'https://userWtheThird.github.io/HSEO-Portal-Prototype/',
     repo: 'https://github.com/userWtheThird/HSEO-Portal-Prototype',
   },
 ];
