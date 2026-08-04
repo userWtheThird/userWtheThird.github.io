@@ -22,6 +22,16 @@ const PROJECTS = [
     link: 'https://userWtheThird.github.io/HSEO-Portal-Prototype/',
     repo: 'https://github.com/userWtheThird/HSEO-Portal-Prototype',
   },
+  {
+    title: 'My CPD',
+    subtitle: 'Continuing Professional Development tracker',
+    description:
+      'A personal CPD tracker for logging professional development activities, tracking hours, and curating reference links to useful resources and sites.',
+    tags: ['React', 'TypeScript', 'Tailwind CSS', 'Vite', 'localStorage'],
+    status: 'In Progress',
+    link: 'https://userWtheThird.github.io/my-CPD/',
+    repo: 'https://github.com/userWtheThird/my-CPD',
+  },
 ];
 
 const NAV_LINKS = [
