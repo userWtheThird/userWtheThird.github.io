@@ -2172,10 +2172,11 @@ function openSourceForm(category, editId) {
         '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div></div>' +
         '<div class="fi f"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div>' :
         '<div class="fi f"><label>Source Name *</label><input id="fName" placeholder="e.g., H-3 Thymidine"></div>' +
-        '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
+        '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
         '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq" selected>GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
         '<div class="fi"><label>Activity (converted)</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi" selected>µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div></div>' +
-        '<div class="fg"><div class="fi"><label>Acquired Date</label><input id="fAcquired" type="date"></div><div class="fi"><label>Volume</label><input id="fVolume" placeholder="e.g., 5 mL"></div></div><div class="fg"><div class="fi"><label>Purchased By</label><input id="fPurchasedBy" placeholder="e.g., Dr. Mary Osei"></div><div class="fi"><label>Vendor</label><input id="fVendor" placeholder="e.g., PerkinElmer"></div></div>')
+        '<div class="fg"><div class="fi"><label>Acquired Date</label><input id="fAcquired" type="date"></div><div class="fi"><label>Volume</label><input id="fVolume" placeholder="e.g., 5 mL"></div></div>' +
+        '<div class="fg"><div class="fi"><label>Purchased By</label><input id="fPurchasedBy" placeholder="e.g., Dr. Mary Osei"></div><div class="fi"><label>Vendor</label><input id="fVendor" placeholder="e.g., PerkinElmer"></div></div>')
   }
 
   const html = '<div class="mback" id="mback"><div class="modal">' +
@@ -2232,6 +2233,14 @@ function openSourceForm(category, editId) {
           document.getElementById('fActivity').value = m[1];
           const unit = m[2].toLowerCase() === 'µci' ? 'uCi' : m[2];
           document.getElementById('fActivityUnit').value = unit;
+        }
+      }
+      if (editing.activityReference) {
+        const m2 = String(editing.activityReference).match(/([\d.]+)\s*(Bq|kBq|MBq|GBq|TBq|uCi|µCi|mCi|Ci)/i);
+        if (m2) {
+          document.getElementById('fActivityConv').value = m2[1];
+          const unit2 = m2[2].toLowerCase() === 'µci' ? 'uCi' : m2[2];
+          document.getElementById('fActivityConvUnit').value = unit2;
         }
       }
     }
