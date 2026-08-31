@@ -1381,6 +1381,13 @@ function renderDetailPanel() {
         '<div class="hist" style="margin-top:4px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi" style="padding:3px 0">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
         '</div>';
     } else {
+      const stLabel = {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || 'In Storage';
+      const stColor = {'purchasing':'var(--blue)','in storage':'var(--txt)','in use':'var(--green)','disposed':'var(--red)'}[s.sourceStatus] || 'var(--txt)';
+      h += '<h3 style="font-size:13px;font-weight:800;margin-bottom:2px">' + esc(s.sourceName) + ' <span class="bdg" style="background:' + stColor + '22;color:' + stColor + ';font-size:10px;vertical-align:middle;margin-left:4px">' + esc(stLabel) + '</span></h3>';
+      h += '<div class="note" style="margin-bottom:8px">' + esc(s.location || '') + ' · ' + esc(deptOf(s)) + '</div>';
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+        '<button class="btn btn-o btn-s" data-act="unsealedEdit"> Edit</button>' +
+        '</div>';
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
       h += '<div class="card" style="padding:12px;border-color:' + (swDue ? 'rgba(239,68,68,.4)' : 'var(--brd)') + '"><h3 class="acc" style="margin-bottom:8px">🧫 Location Swipe Test — ' + esc(s.spaceID || s.location || '—') + '</h3>' +
@@ -3984,6 +3991,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'licenceChange') { openLicenceChange(S.detailId); return; }
     if (act === 'iaEdit') { openSourceForm('apparatus', S.detailId); return; }
     if (act === 'sealedEdit') { openSourceForm('sealed', S.detailId); return; }
+  if (act === 'unsealedEdit') { openSourceForm('unsealed', S.detailId); return; }
     if (act === 'iaToPU') { openPossessUseForm(S.detailId); return; }
     if (act === 'iaDecom') { openDecommissionForm(S.detailId); return; }
   if (act === 'ruaRenew') { await renewRua(S.ruaDetailId); return; }
