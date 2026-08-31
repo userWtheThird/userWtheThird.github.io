@@ -1394,7 +1394,7 @@ function renderDetailPanel() {
         '</div>' +
         ((s.leakTestResult || s.leakTestCounts != null) ? leakResultKv(s) : '') +
         '<div class="hist" style="margin-top:10px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
-        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest"> Conduct Leak Test</button></div>' +
+        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest"> Conduct Leak Test</button></div>'
     } else {
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
