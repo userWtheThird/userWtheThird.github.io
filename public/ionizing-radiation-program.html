@@ -1680,20 +1680,25 @@ function openSwipeForm(rua) {
 }
 
 function swipeEntryText(e) {
-  // New multi-site format
+  // New multi-site format — summary first, sites secondary
   if (e.sites && e.sites.length) {
-    const label = e.overallResult === 'adal' ? 'FLAGGED' : (e.overallResult === 'positive' ? 'FLAGGED' : 'CLEAN');
-    let txt = e.date + ' — Bg ' + e.background + ' dpm · E ' + (e.efficiency * 100).toFixed(0) + '% · MDA ' + e.mda.toFixed(2) + ' dpm';
-    if (e.followUp) txt += ' — Follow-up: ' + e.followUp;
-    txt += '<br>' + e.sites.map(s => {
-      const clr = s.classification.includes('dal') ? 'var(--red)' : s.classification.includes('adal') ? 'var(--amb)' : s.classification === 'positive' ? 'var(--amb)' : 'var(--grn)';
-      return '<span style="margin-right:10px;white-space:nowrap">' + esc(s.location) + ': <b class="mono">' + s.dpm + ' dpm</b> <span style="color:' + clr + ';font-weight:600">' + esc(s.result) + '</span></span>';
-    }).join('');
+    const overallClr = e.overallResult === 'adal' ? 'var(--red)' : e.overallResult === 'positive' ? 'var(--amb)' : 'var(--grn)';
+    const overallLabel = e.overallResult === 'adal' ? 'ABOVE ADAL' : e.overallResult === 'positive' ? 'POSITIVE' : e.overallResult === 'clean' ? 'Clean' : (e.overallResult || '—');
+    let txt = '<div style="margin-bottom:4px"><b>Swipe Date:</b> ' + esc(e.date) + ' <span class="bdg" style="background:' + overallClr + '22;color:' + overallClr + ';border:1px solid ' + overallClr + '44;margin-left:6px">' + esc(overallLabel) + '</span></div>';
+    txt += '<div class="note" style="margin-bottom:4px">Bg ' + e.background + ' dpm &middot; E ' + (e.efficiency * 100).toFixed(0) + '% &middot; MDA ' + e.mda.toFixed(2) + ' dpm</div>';
+    if (e.followUp) txt += '<div style="margin-bottom:4px;color:var(--amb);font-weight:600;font-size:11px">Follow-up: ' + esc(e.followUp) + '</div>';
+    txt += '<div class="note" style="font-size:10px;margin-top:2px">' + e.sites.map(function(s) {
+      var clr = s.classification.includes('dal') ? 'var(--red)' : s.classification.includes('adal') ? 'var(--amb)' : s.classification === 'positive' ? 'var(--amb)' : 'var(--grn)';
+      return '<span style="margin-right:10px;white-space:nowrap">' + esc(s.location) + ': <b class="mono">' + s.dpm + ' dpm</b> <span style="color:' + clr + '">' + esc(s.result) + '</span></span>';
+    }).join('') + '</div>';
     return txt;
   }
   // Legacy single-site format
-  const label = e.result === 'adal' ? 'ABOVE ADAL' : (e.result === 'positive' ? 'POSITIVE' : 'CLEAN');
-  return e.date + ' — Net ' + (e.net ?? 0).toFixed(1) + ' cpm (measured ' + e.counts + ', background ' + (e.background || 0) + ') — ' + label + (e.followUp ? ' — Follow-up: ' + e.followUp : '');
+  var label = e.result === 'adal' ? 'ABOVE ADAL' : (e.result === 'positive' ? 'POSITIVE' : 'CLEAN');
+  var txt2 = '<div style="margin-bottom:4px"><b>Swipe Date:</b> ' + esc(e.date) + ' <span class="bdg">' + esc(label) + '</span></div>';
+  txt2 += '<div class="note">Net ' + (e.net ?? 0).toFixed(1) + ' cpm (measured ' + e.counts + ', Bg ' + (e.background || 0) + ')</div>';
+  if (e.followUp) txt2 += '<div style="margin-top:4px;color:var(--amb);font-weight:600;font-size:11px">Follow-up: ' + esc(e.followUp) + '</div>';
+  return txt2;
 }
 
 function stripHtmlTags(html) {
