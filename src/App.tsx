@@ -13,6 +13,16 @@ import {
 
 const PROJECTS = [
   {
+    title: 'Ionizing Radiation Program',
+    subtitle: 'Radiation safety management system',
+    description:
+      'A standalone HTML application for managing ionizing radiation safety — sealed/unsealed source inventory, leak tests, swipe tests, dosimetry tracking, waste disposal, and regulatory compliance reporting.',
+    tags: ['HTML', 'JavaScript', 'Standalone', 'SharePoint-ready'],
+    status: 'In Progress',
+    link: 'https://userWtheThird.github.io/ionizing-radiation-program.html',
+    repo: 'https://github.com/userWtheThird/userWtheThird.github.io',
+  },
+  {
     title: 'HSEO Portal Prototype',
     subtitle: 'Full-stack safety management platform',
     description:
