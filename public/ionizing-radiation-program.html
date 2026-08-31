@@ -2312,6 +2312,23 @@ function openSourceForm(category, editId) {
         const authIsos = [...new Set((rua.groups || []).flatMap(g => isoNamesOf(g)))];
         if (!authIsos.includes(isotope)) return showErr(isotope + ' is not authorized in the RUA for ' + space + '. Authorized isotopes: ' + (authIsos.join(', ') || 'none') + '. Update the RUA first.');
       }
+      if (editing) {
+        Object.assign(editing, {
+          sourceName: name, isotope, activity, location: space, spaceID: space,
+          custodian, department: dept,
+          activityReference: document.getElementById('fActRef') ? document.getElementById('fActRef').value.trim() || undefined : undefined,
+          referenceDate: document.getElementById('fRefDate') ? document.getElementById('fRefDate').value || undefined : undefined,
+          acquiredDate: document.getElementById('fAcquired') ? (document.getElementById('fAcquired').value || todayISO()) : undefined,
+          volume: document.getElementById('fVolume') ? document.getElementById('fVolume').value.trim() || undefined : undefined,
+          purchasedBy: document.getElementById('fPurchasedBy') ? document.getElementById('fPurchasedBy').value.trim() || undefined : undefined,
+          vendorName: document.getElementById('fVendor') ? document.getElementById('fVendor').value.trim() || undefined : undefined,
+          sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
+          quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
+          manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
+          licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined
+        });
+        source = editing;
+      } else {
       source = {
         id: uid('rad'), category, sourceName: name, isotope, activity, location: space, spaceID: space,
         custodian, department: dept, status: 'safe', addedDate: todayISO(), checkHistory: [],
@@ -2332,6 +2349,7 @@ function openSourceForm(category, editId) {
         const today = todayISO();
         const next = new Date(); next.setDate(next.getDate() + LEAK_INTERVAL_DAYS);
         source.lastLeakTest = today; source.nextLeakTest = next.toISOString().slice(0, 10);
+      }
       }
     }
     if (!editing) S.sources.push(source);
