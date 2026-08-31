@@ -2661,7 +2661,7 @@ function renderRuaDetail() {
   let h = '<div class="sidecard"><h3 style="font-size:13px;font-weight:800;margin-bottom:4px">RUA — ' + esc(u.spaceID) + '</h3>' +
     '<div class="note" style="margin-bottom:12px">' + esc(u.department) + ' · <span class="bdg ' + (u.type === 'Communal' ? 'b-communal' : 'b-individual') + '" style="vertical-align:middle">' + u.type + '</span></div>';
   const isInactive = u.status === 'inactive';
-  h += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="btn btn-o btn-s" data-act="ruaRenew">🔄 Renew for 1 Year</button><button class="btn btn-o btn-s" data-act="ruaEdit">✏ Edit Authorization</button><button class="btn ' + (isInactive ? 'btn-p' : 'btn-r') + ' btn-s" data-act="ruaToggleStatus">' + (isInactive ? '✓ Set Active' : '⊘ Set Inactive') + '</button></div>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="btn btn-p btn-s" data-act="ruaSwipe">🧪 Conduct Swipe Test</button><button class="btn btn-o btn-s" data-act="ruaEdit">✏ Edit RUA</button><button class="btn btn-o btn-s" data-act="ruaRenew">🔄 Renew for 1 Year</button><button class="btn ' + (isInactive ? 'btn-p' : 'btn-r') + ' btn-s" data-act="ruaToggleStatus">' + (isInactive ? '✓ Set Active' : '⊘ Set Inactive') + '</button></div>';
   if (u.type === 'Individual' && u.personInCharge) {
     h += '<div class="kv" style="margin-bottom:12px"><div class="k">Person in Charge</div><div class="v">' + esc(u.personInCharge) + '</div></div>';
   }
@@ -2687,7 +2687,7 @@ function renderRuaDetail() {
     '<div class="kv"><div class="k">Next Due</div><div class="v">' + fmtDate(u.nextSwipeTest) + (swDue ? ' <span class="bdg b-alert" style="padding:1px 6px">OVERDUE</span>' : '') + '</div></div>' +
     '</div>' +
     '<div class="hist" style="margin-top:10px">' + ((u.swipeHistory || []).length ? u.swipeHistory.map((x, xi) => { var hasDal = typeof x !== 'string' && x.sites && x.sites.some(function(s) { return s.classification === 'above_dal'; }); return '<div class="hi" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1">' + (typeof x === 'string' ? stripHtmlTags(x) : swipeEntryText(x)) + '</div><div style="display:flex;gap:4px;flex-shrink:0">' + (typeof x !== 'string' && x.sites ? '<button class="btn btn-o btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-swprint="' + u.id + ':' + xi + '"> Report</button>' + (hasDal ? '<button class="btn btn-r btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-adalprint="' + u.id + ':' + xi + '">🚨 ADAL Report</button>' : '') : '') + '</div></div>'; }).join('') : '<div class="note">No swipe tests recorded yet</div>') + '</div>' +
-    '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="ruaSwipe">🧫 Conduct Swipe Test</button></div>';
+    '</div>';
   h += '<div class="card" style="padding:12px;margin-bottom:12px"><h3 class="acc" style="margin-bottom:8px">🕓 Change History — Isotope Use &amp; Users</h3><div class="hist">' +
     ((u.changeHistory || []).length ? (u.changeHistory || []).slice().reverse().map(r => '<div class="hi"><div><b class="mono">' + fmtDate(r.date) + '</b><br>' + (r.changes || []).map(c => '<span class="note">• ' + esc(c) + '</span>').join('<br>') + '</div></div>').join('') : '<div class="note">No changes recorded yet — edits to isotope use and authorized users are logged automatically.</div>') + '</div></div>';
   h += '</div>';
