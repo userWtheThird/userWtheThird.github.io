@@ -170,11 +170,13 @@ input,select,textarea{font-family:inherit}
 ::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:4px}
 
 /* Header */
-.hdr{background:var(--bg2);border-bottom:1px solid var(--brd);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.hdr .left{display:flex;align-items:center;gap:12px}
-.hdr .logo{width:40px;height:40px;background:linear-gradient(135deg,#d97706,#b45309);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
-.hdr h1{font-size:16px;font-weight:800;letter-spacing:-.02em}
-.hdr .sub{font-size:11px;color:var(--txt3)}
+.hdr{background:var(--bg2);border-bottom:1px solid var(--brd);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hdr .left{display:flex;align-items:center;gap:10px}
+.hdr .logo{width:32px;height:32px;background:linear-gradient(135deg,#d97706,#b45309);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.hdr h1{font-size:14px;font-weight:700;letter-spacing:-.01em;display:inline}
+.hdr .sub{font-size:10px;color:var(--txt3);margin-left:6px;display:inline}
+.hdr-back{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--bg);border:1px solid var(--brd);cursor:pointer;color:var(--txt);font-size:14px;transition:background .2s;text-decoration:none}
+.hdr-back:hover{background:var(--brd)}
 .sync-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:5px 12px;border-radius:999px;border:1px solid var(--brd2);background:var(--bg)}
 .sync-pill .dot{width:7px;height:7px;border-radius:50%}
 .sync-pill.sp .dot{background:var(--grn)} .sync-pill.local .dot{background:var(--amb)}
@@ -285,7 +287,7 @@ tbody tr.hl{background:var(--amb-l)}
 .layout2{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
 @media(max-width:1000px){.layout2{grid-template-columns:1fr}}
 /* Split layout: table left, sticky detail panel right */
-.split-layout{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start}
+.split-layout{display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start}
 .split-layout .split-main{min-height:0}
 .split-layout .split-detail{position:sticky;top:16px;max-height:calc(100vh - 120px);overflow-y:auto;scrollbar-width:thin}
 @media(max-width:1100px){.split-layout{grid-template-columns:1fr}.split-layout .split-detail{position:static;max-height:none}}
@@ -344,14 +346,14 @@ input[type=range]{width:100%;accent-color:var(--amb)}
 
 <header class="hdr">
   <div class="left">
+    <a class="hdr-back" href="launcher.html" title="Back to HSEO Programs">←</a>
     <div class="logo">☢️</div>
     <div>
-      <h1>Ionizing Radiation Safety Program</h1>
-      <div class="sub">Inventory · Radiation Use Authorizations · Personnel Dosimetry</div>
+      <h1>HSEO Programs</h1><span class="sub">Ionizing Radiation Safety Program</span>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <button class="icobtn" id="themeToggle" title="Toggle light/dark theme" style="font-size:13px;padding:5px 10px">☀️</button>
+    <button class="icobtn" id="themeToggle" title="Toggle light/dark theme" style="font-size:12px;padding:4px 8px">☀️</button>
     <div class="sync-pill local" id="syncPill"><span class="dot"></span><span id="syncLabel">Local mode — data saved in this browser</span></div>
   </div>
 </header>
@@ -456,7 +458,7 @@ function activityAtDisposalCell(w) {
   const a0 = w.activityUCi || 0;
   const at = activityAtUCi(w, w.disposedDate);
   const pct = a0 > 0 ? Math.round((1 - at / a0) * 100) : 0;
-  return at.toFixed(2) + ' µCi<br><span class="note">' + (at * UCII_TO_MBQ).toFixed(4) + ' MBq · est. ' + a0.toFixed(2) + ' µCi at collection' + (pct >= 1 ? ' · −' + pct + '%' : '') + '</span>';
+  return at.toFixed(2) + ' µCi (' + (at * UCII_TO_MBQ).toFixed(4) + ' MBq)<br><span class="note">est. ' + a0.toFixed(2) + ' µCi at collection' + (pct >= 1 ? ' · −' + pct + '%' : '') + '</span>';
 }
 
 // Calculate %ALI (Annual Limit on Intake) for a waste container
@@ -744,12 +746,12 @@ function unsealedSummaryHTML() {
   const us = S.sources.filter(s => s.category === 'unsealed');
   if (!us.length) return '';
   const { isotopes, locs, grid, isoTotals, locTotals, grand } = unsealedSummaryData();
-  const cell = x => x ? '<td class="mono" title="' + (x * UCII_TO_MBQ).toFixed(3) + ' MBq">' + fmtUCi(x) + '</td>' : '<td class="note" style="text-align:center">—</td>';
+  const cell = x => x ? '<td class="mono" style="text-align:center" title="' + (x * UCII_TO_MBQ).toFixed(3) + ' MBq">' + fmtUCi(x) + '</td>' : '<td class="note" style="text-align:center">—</td>';
   return '<div class="card" style="padding:14px;margin-bottom:14px"><h3 class="acc" style="margin-bottom:4px">📋 Unsealed Inventory Summary — Location × Isotope <button class="btn btn-o btn-s" id="sumPrint" style="float:right">🖨 Print / PDF</button></h3>' +
     '<div class="note" style="margin-bottom:10px">Total unsealed activity held at each location, in µCi (hover a cell for the MBq equivalent). Useful for licence renewal.</div>' +
     '<div class="tw"><table><thead><tr><th>Location</th>' + isotopes.map(i => '<th class="mono">' + esc(i) + '</th>').join('') + '<th>Total (µCi)</th></tr></thead><tbody>' +
-    locs.map(loc => '<tr><td style="color:var(--txt);font-weight:600">' + esc(loc) + '</td>' + isotopes.map(i => cell(grid[loc] && grid[loc][i])).join('') + '<td class="mono" style="font-weight:700">' + fmtUCi(locTotals[loc]) + '</td></tr>').join('') +
-    '</tbody><tfoot><tr style="border-top:2px solid var(--brd)"><td style="font-weight:700">Total (µCi)</td>' + isotopes.map(i => '<td class="mono" style="font-weight:700" title="' + (isoTotals[i] * UCII_TO_MBQ).toFixed(3) + ' MBq">' + fmtUCi(isoTotals[i]) + '</td>').join('') + '<td class="mono" style="font-weight:700">' + fmtUCi(grand) + '</td></tr></tfoot></table></div></div>';
+    locs.map(loc => '<tr><td style="color:var(--txt);font-weight:600">' + esc(loc) + '</td>' + isotopes.map(i => cell(grid[loc] && grid[loc][i])).join('') + '<td class="mono" style="text-align:center;font-weight:700">' + fmtUCi(locTotals[loc]) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr style="border-top:2px solid var(--brd)"><td style="font-weight:700">Total (µCi)</td>' + isotopes.map(i => '<td class="mono" style="text-align:center;font-weight:700" title="' + (isoTotals[i] * UCII_TO_MBQ).toFixed(3) + ' MBq">' + fmtUCi(isoTotals[i]) + '</td>').join('') + '<td class="mono" style="text-align:center;font-weight:700">' + fmtUCi(grand) + '</td></tr></tfoot></table></div></div>';
 }
 
 // Quarterly acquisitions & consumption report for unsealed sources (licence renewal / regulatory reporting)
@@ -886,7 +888,7 @@ function licFolderUrl() {
 const S = {
   sources: [], doses: [], ruas: [], waste: [], doseRoster: [], docs: [], locations: [...SEED_LOCATIONS], persons: [...SEED_PERSONS],
   tab: 'overview', cat: 'sealed',
-  invSearch: '', invDept: '', invIso: '', invView: 'list', invMenuOpen: false,
+  invSearch: '', invDept: '', invIso: '', invLicence: '', invView: 'list', invMenuOpen: false,
   ruaSearch: '', ruaDept: '', ruaDetailId: null, ruaEditId: null, rosterOpen: false,
     mOpen: { waste: true, dosimetry: true, tests: true, renewals: true },
   rptYear: new Date().getFullYear(), rptQ: Math.floor(new Date().getMonth() / 3) + 1,
@@ -1153,6 +1155,7 @@ function filteredSources() {
     if (s.category !== S.cat) return false;
     if (S.invDept && deptOf(s) !== S.invDept) return false;
     if (S.invIso && s.isotope !== S.invIso) return false;
+    if (S.invLicence && s.licenceNumber !== S.invLicence) return false;
     if (q) {
       const hay = ((s.sourceName || '') + ' ' + (s.equipmentDescription || '') + ' ' + (s.location || '') + ' ' + (s.custodian || '') + ' ' + (s.licenceNumber || '')).toLowerCase();
       if (!hay.includes(q)) return false;
@@ -1198,12 +1201,28 @@ function renderInventory() {
   if (S.cat !== 'apparatus') {
     html += '<select class="sb" id="invIso"><option value="">All Isotopes</option>' + ISOTOPE_OPTIONS.map(i => '<option ' + (S.invIso === i ? 'selected' : '') + '>' + i + '</option>').join('') + '</select>';
   }
+  if (S.cat !== 'apparatus') {
+    const licences = [...new Set(S.sources.filter(s => s.category === S.cat && s.licenceNumber).map(s => s.licenceNumber))].sort();
+    html += '<select class="sb" id="invLicence"><option value="">All Licences</option>' + licences.map(l => '<option ' + (S.invLicence === l ? 'selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>';
+    if (S.invLicence) {
+      const count = S.sources.filter(s => s.category === S.cat && s.licenceNumber === S.invLicence).length;
+      html += '<button class="btn btn-o btn-s" id="invRenewLicence" title="Update licence number for all ' + count + ' sources with this licence">🔄 Renew Licence (' + count + ')</button>';
+    }
+  }
   html += '<button class="btn btn-o btn-s" id="invExport">⬇ Export CSV</button>' +
+    '<button class="btn btn-o btn-s" id="invImport">⬆ Import CSV</button>' +
     '<button class="btn btn-p" id="invAdd">+ Register ' + (S.cat === 'apparatus' ? 'Apparatus' : 'Source') + '</button></div>';
 
-  // Batch bar (sealed only)
-  if (S.cat === 'sealed' && S.selSources.size > 0) {
-    html += '<div class="batchbar">✔ <b>' + S.selSources.size + '</b> selected — <button class="btn btn-g btn-s" id="batchVerify">Mark All as Inventory-Checked</button> <button class="btn btn-o btn-s" id="batchClear">Clear Selection</button></div>';
+  // Hidden file input for CSV import
+  html += '<input type="file" id="csvImportFile" accept=".csv" style="display:none">';
+
+  // Batch bar (sealed/unsealed only)
+  if ((S.cat === 'sealed' || S.cat === 'unsealed') && S.selSources.size > 0) {
+    html += '<div class="batchbar">✔ <b>' + S.selSources.size + '</b> selected — <button class="btn btn-g btn-s" id="batchVerify">Mark All as Inventory-Checked</button>';
+    if (S.cat === 'sealed' || S.cat === 'unsealed') {
+      html += ' <button class="btn btn-o btn-s" id="batchLicence">🔄 Renew Licence</button>';
+    }
+    html += ' <button class="btn btn-o btn-s" id="batchClear">Clear Selection</button></div>';
   }
 
   // Table
@@ -1211,7 +1230,7 @@ function renderInventory() {
     html += '<div class="empty"><div class="big">☢️</div>No sources found in this category.<br><br><button class="btn btn-p" id="invAdd2">+ Register the first one</button></div>';
   } else if (S.cat === 'sealed') {
     html += '<h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--txt)"> Sealed Sources <span class="note">(' + rows.length + ')</span></h3>';
-    html += '<div class="tw"><table><thead><tr><th style="width:30px"></th><th>Source No.</th><th>Description</th><th>Radionuclide</th><th>Activity</th><th>Ref. Date</th><th>Qty</th><th>Location</th><th>Leak Test</th><th>Inv. Check</th></tr></thead><tbody>' +
+    html += '<div class="tw"><table><thead><tr><th style="width:30px"><input type="checkbox" class="chk" id="selAll" title="Select all"></th><th>Source No.</th><th>Description</th><th>Radionuclide</th><th>Activity</th><th>Ref. Date</th><th>Qty</th><th>Location</th><th>Leak Test</th><th>Inv. Check</th></tr></thead><tbody>' +
       rows.map(s => {
         const chk = checkStatus(s);
         const leakDays = s.nextLeakTest ? daysUntil(s.nextLeakTest) : null;
@@ -1231,11 +1250,12 @@ function renderInventory() {
     const sortIcon = col => S.invSortCol === col ? (S.invSortDir === 'asc' ? ' ▲' : ' ▼') : '';
     const sortTh = (col, label) => '<th class="sortable" data-invsort="' + col + '" style="cursor:pointer;user-select:none">' + label + '<span class="note">' + sortIcon(col) + '</span></th>';
     html += '<h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--txt)">☢ Unsealed Sources <span class="note">(' + rows.length + ')</span></h3>';
-    html += '<div class="tw"><table><thead><tr>' + sortTh('source', 'Source') + sortTh('isotope', 'Isotope') + sortTh('location', 'Location') + sortTh('rua', 'RUA') + '<th>Swipe Test (Location)</th>' + sortTh('custodian', 'Custodian') + '<th>Status</th></tr></thead><tbody>' +
+    html += '<div class="tw"><table><thead><tr><th style="width:30px"><input type="checkbox" class="chk" id="selAll" title="Select all"></th>' + sortTh('source', 'Source') + sortTh('isotope', 'Isotope') + sortTh('location', 'Location') + sortTh('rua', 'RUA') + '<th>Swipe Test (Location)</th>' + sortTh('custodian', 'Custodian') + '<th>Status</th></tr></thead><tbody>' +
       rows.map(s => {
         const st = swipeRuaState(s.spaceID || s.location);
         const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
         return '<tr class="sel ' + (S.detailId === s.id ? 'hl' : '') + '" data-open="' + s.id + '">' +
+          '<td onclick="event.stopPropagation()"><input type="checkbox" class="chk" data-chk="' + s.id + '" ' + (S.selSources.has(s.id) ? 'checked' : '') + '></td>' +
         '<td style="color:var(--txt);font-weight:600">' + esc(s.sourceName) + '</td>' +
         '<td class="mono">' + esc(s.isotope) + '</td>' +
         '<td>' + esc(s.location) + '</td>' +
@@ -1341,6 +1361,7 @@ function renderDetailPanel() {
     if (s.category === 'sealed') {
       h += '<div class="card" style="padding:12px;margin-bottom:12px"><h3 class="acc" style="margin-bottom:8px">📋 Licence Details</h3>' +
         '<div class="kv" style="display:grid;gap:8px">' +
+        '<div class="kv"><div class="k">Licence No.</div><div class="v mono">' + esc(s.licenceNumber || '—') + '</div></div>' +
         '<div class="kv"><div class="k">Source Number</div><div class="v mono">' + esc(s.sourceNumber || '—') + '</div></div>' +
         '<div class="kv"><div class="k">Description of Substance</div><div class="v">' + esc(s.sourceName || '—') + '</div></div>' +
         '<div class="kv"><div class="k">Radionuclide</div><div class="v mono">' + esc(s.isotope || '—') + '</div></div>' +
@@ -1360,7 +1381,11 @@ function renderDetailPanel() {
         '</div>' +
         ((s.leakTestResult || s.leakTestCounts != null) ? leakResultKv(s) : '') +
         '<div class="hist" style="margin-top:10px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
-        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest">🧫 Conduct Leak Test</button></div>';
+        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest"> Conduct Leak Test</button></div>' +
+        '<div style="display:grid;gap:8px;margin-top:12px">' +
+        '<button class="btn btn-o" data-act="sealedEdit"> Edit Sealed Source Details</button>' +
+        '<button class="btn btn-p" data-act="licenceChange">✏ Change / Renew Licence Number</button>' +
+        '</div>';
     } else {
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
@@ -1909,6 +1934,185 @@ function exportCSV() {
   toast('⬇ CSV exported (' + rows.length + ' rows)');
 }
 
+function importCSV() {
+  const fileInput = document.getElementById('csvImportFile');
+  if (!fileInput) {
+    toast('⚠ File input not found. Please refresh the page.', 'error');
+    return;
+  }
+  fileInput.click();
+  fileInput.onchange = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length < 2) { toast('⚠ CSV file is empty or has no data rows', 'error'); return; }
+      
+      const headers = parseCSVLine(lines[0]);
+      const dataRows = lines.slice(1).map(l => parseCSVLine(l));
+      
+      let added = 0, updated = 0;
+      let errors = [];
+      
+      if (S.cat === 'apparatus') {
+        // Apparatus import
+        const headerMap = {
+          equipment: 'equipmentDescription',
+          stage: 'stage',
+          location: 'location',
+          spaceid: 'spaceID',
+          department: 'department',
+          custodian: 'custodian',
+          licence: 'licenceNumber',
+          'licence expiry': 'licenceExpiryDate',
+          'licence status': 'licenceStatus',
+          'last check': 'lastInventoryCheckDate'
+        };
+        
+        dataRows.forEach((row, idx) => {
+          try {
+            const obj = {};
+            headers.forEach((h, i) => {
+              const key = headerMap[h.toLowerCase().trim()];
+              if (key) obj[key] = row[i] || '';
+            });
+            
+            if (!obj.equipmentDescription || !obj.location) {
+              errors.push('Row ' + (idx + 2) + ': Missing required fields (Equipment or Location)');
+              return;
+            }
+            
+            // Check if exists by equipmentDescription + location
+            const existing = S.sources.find(s => s.category === 'apparatus' && s.equipmentDescription === obj.equipmentDescription && s.location === obj.location);
+            if (existing) {
+              Object.assign(existing, obj);
+              updated++;
+            } else {
+              S.sources.push({
+                id: uid('rad'),
+                category: 'apparatus',
+                equipmentDescription: obj.equipmentDescription,
+                location: obj.location,
+                spaceID: obj.spaceID || obj.location,
+                department: obj.department || '',
+                custodian: obj.custodian || '',
+                licenceNumber: obj.licenceNumber || '',
+                licenceExpiryDate: obj.licenceExpiryDate || '',
+                lastInventoryCheckDate: obj.lastInventoryCheckDate || '',
+                stage: obj.stage || 'possess-use',
+                addedDate: todayISO(),
+                checkHistory: [],
+                licenceHistory: []
+              });
+              added++;
+            }
+          } catch (err) {
+            errors.push('Row ' + (idx + 2) + ': ' + err.message);
+          }
+        });
+      } else {
+        // Sealed/Unsealed source import
+        const headerMap = {
+          source: 'sourceName',
+          category: 'category',
+          isotope: 'isotope',
+          activity: 'activity',
+          location: 'location',
+          spaceid: 'spaceID',
+          department: 'department',
+          custodian: 'custodian',
+          status: 'status',
+          'last leak test': 'lastLeakTest',
+          'next leak test': 'nextLeakTest',
+          'last check': 'lastInventoryCheckDate'
+        };
+        
+        dataRows.forEach((row, idx) => {
+          try {
+            const obj = {};
+            headers.forEach((h, i) => {
+              const key = headerMap[h.toLowerCase().trim()];
+              if (key) obj[key] = row[i] || '';
+            });
+            
+            if (!obj.sourceName || !obj.activity || !obj.location) {
+              errors.push('Row ' + (idx + 2) + ': Missing required fields (Source, Activity, or Location)');
+              return;
+            }
+            
+            // Check if exists by sourceName + location
+            const existing = S.sources.find(s => s.category === S.cat && s.sourceName === obj.sourceName && s.location === obj.location);
+            if (existing) {
+              Object.assign(existing, obj);
+              updated++;
+            } else {
+              S.sources.push({
+                id: uid('rad'),
+                category: S.cat,
+                sourceName: obj.sourceName,
+                isotope: obj.isotope || '',
+                activity: obj.activity,
+                location: obj.location,
+                spaceID: obj.spaceID || obj.location,
+                department: obj.department || '',
+                custodian: obj.custodian || '',
+                status: obj.status || 'safe',
+                lastLeakTest: obj.lastLeakTest || '',
+                nextLeakTest: obj.nextLeakTest || '',
+                lastInventoryCheckDate: obj.lastInventoryCheckDate || '',
+                addedDate: todayISO(),
+                checkHistory: []
+              });
+              added++;
+            }
+          } catch (err) {
+            errors.push('Row ' + (idx + 2) + ': ' + err.message);
+          }
+        });
+      }
+      
+      lsSave(LS_KEYS.sources, S.sources);
+      renderAll();
+      
+      if (errors.length > 0) {
+        toast('⚠ Import completed with ' + errors.length + ' error(s). ' + added + ' added, ' + updated + ' updated.', 'error');
+        console.warn('CSV Import errors:', errors);
+      } else {
+        toast('⬆ CSV imported: ' + added + ' added, ' + updated + ' updated', 'success');
+      }
+      fileInput.value = '';
+    } catch (err) {
+      console.error('CSV import error:', err);
+      toast('⚠ CSV import failed: ' + err.message, 'error');
+    }
+  };
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += c;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 // ════════════════════════════════════════════════════════════════
 //  SOURCE REGISTRATION MODAL
 // ════════════════════════════════════════════════════════════════
@@ -1935,13 +2139,16 @@ function openSourceForm(category, editId) {
         '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
         '<div class="fg"><div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
         '<div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div></div>' +
-        '<div class="fg"><div class="fi"><label>Activity *</label><input id="fActivity" placeholder="e.g., 3.7 MBq"></div>' +
+        '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq" selected>MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
         '<div class="fi"><label>Reference Date</label><input id="fRefDate" type="date"></div></div>' +
-        '<div class="fg"><div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div>' +
-        '<div class="fi"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div></div>' :
+        '<div class="fg"><div class="fi"><label>Activity (converted)</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
+        '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div>' +
+        '<div class="fi"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div></div>' +
+        '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' :
         '<div class="fi f"><label>Source Name *</label><input id="fName" placeholder="e.g., H-3 Thymidine"></div>' +
         '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
-        '<div class="fi"><label>Activity *</label><input id="fActivity" placeholder="e.g., 3.7 GBq"></div></div>' +
+        '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq" selected>GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
+        '<div class="fi"><label>Activity (converted)</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi" selected>µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div></div>' +
         '<div class="fg"><div class="fi"><label>Acquired Date</label><input id="fAcquired" type="date"></div><div class="fi"><label>Volume</label><input id="fVolume" placeholder="e.g., 5 mL"></div></div><div class="fg"><div class="fi"><label>Purchased By</label><input id="fPurchasedBy" placeholder="e.g., Dr. Mary Osei"></div><div class="fi"><label>Vendor</label><input id="fVendor" placeholder="e.g., PerkinElmer"></div></div>')
   }
 
@@ -1971,11 +2178,30 @@ function openSourceForm(category, editId) {
       if (editing.sourceNumber) document.getElementById('fSourceNo').value = editing.sourceNumber;
       if (editing.quantity) document.getElementById('fQty').value = editing.quantity;
       if (editing.manufacturer) document.getElementById('fMfr').value = editing.manufacturer;
+      if (editing.licenceNumber) document.getElementById('fLicence').value = editing.licenceNumber;
+      // Parse activity string for editing
+      if (editing.activity) {
+        const m = String(editing.activity).match(/([\d.]+)\s*(Bq|kBq|MBq|GBq|TBq|uCi|µCi|mCi|Ci)/i);
+        if (m) {
+          document.getElementById('fActivity').value = m[1];
+          const unit = m[2].toLowerCase() === 'µci' ? 'uCi' : m[2];
+          document.getElementById('fActivityUnit').value = unit;
+        }
+      }
     } else {
       if (editing.acquiredDate) document.getElementById('fAcquired').value = editing.acquiredDate;
       if (editing.volume) document.getElementById('fVolume').value = editing.volume;
       if (editing.purchasedBy) document.getElementById('fPurchasedBy').value = editing.purchasedBy;
       if (editing.vendorName) document.getElementById('fVendor').value = editing.vendorName;
+      // Parse activity string for editing
+      if (editing.activity) {
+        const m = String(editing.activity).match(/([\d.]+)\s*(Bq|kBq|MBq|GBq|TBq|uCi|µCi|mCi|Ci)/i);
+        if (m) {
+          document.getElementById('fActivity').value = m[1];
+          const unit = m[2].toLowerCase() === 'µci' ? 'uCi' : m[2];
+          document.getElementById('fActivityUnit').value = unit;
+        }
+      }
     }
   }
   const stageSel = document.getElementById('fStage');
@@ -1984,7 +2210,7 @@ function openSourceForm(category, editId) {
     const syncStage = () => {
       const poss = stageSel.value === 'possess';
       document.getElementById('fPossessExtra').style.display = poss ? '' : 'none';
-      document.getElementById('fLicenceLabel').textContent = (poss ? 'Possess Licence Number' : 'Possess & Use Licence Number') + ' *';
+      document.getElementById('fLicenceLabel').textContent = poss ? 'Possess Licence Number' : 'Possess & Use Licence Number';
     };
     stageSel.addEventListener('change', syncStage);
     syncStage();
@@ -1998,6 +2224,29 @@ function openSourceForm(category, editId) {
   };
   selSpace.addEventListener('change', fillCustodian);
   fillCustodian();
+
+  // Activity unit conversion for sealed/unsealed sources
+  const actInp = document.getElementById('fActivity');
+  const actUnit = document.getElementById('fActivityUnit');
+  const actConv = document.getElementById('fActivityConv');
+  const actConvUnit = document.getElementById('fActivityConvUnit');
+  if (actInp && actUnit && actConv && actConvUnit) {
+    // Conversion factors to MBq
+    const toMBq = { Bq: 0.000001, kBq: 0.001, MBq: 1, GBq: 1000, TBq: 1000000, uCi: 0.037, mCi: 37, Ci: 37000 };
+    const convertActivity = () => {
+      const val = parseFloat(actInp.value);
+      if (isNaN(val) || val === 0) { actConv.value = ''; return; }
+      const fromUnit = actUnit.value;
+      const toUnit = actConvUnit.value;
+      const mbq = val * toMBq[fromUnit];
+      const result = mbq / toMBq[toUnit];
+      actConv.value = result < 0.0001 ? result.toExponential(4) : result.toFixed(4);
+    };
+    actInp.addEventListener('input', convertActivity);
+    actUnit.addEventListener('change', convertActivity);
+    actConvUnit.addEventListener('change', convertActivity);
+    convertActivity();
+  }
 
   document.getElementById('fSubmit').onclick = async () => {
     const errEl = document.getElementById('fErr');
@@ -2050,8 +2299,13 @@ function openSourceForm(category, editId) {
     } else {
       const name = document.getElementById('fName').value.trim();
       const isotope = document.getElementById('fIsotope').value;
-      const activity = document.getElementById('fActivity').value.trim();
-      if (!name || !activity || !space) return showErr('Source name, activity and location are required.');
+      const activityVal = parseFloat(document.getElementById('fActivity').value);
+      const activityUnit = document.getElementById('fActivityUnit') ? document.getElementById('fActivityUnit').value : 'MBq';
+      if (!name || isNaN(activityVal) || activityVal <= 0 || !space) return showErr('Source name, activity and location are required.');
+      // Convert activity to MBq for storage
+      const toMBq = { Bq: 0.000001, kBq: 0.001, MBq: 1, GBq: 1000, TBq: 1000000, uCi: 0.037, mCi: 37, Ci: 37000 };
+      const activityMBq = activityVal * toMBq[activityUnit];
+      const activity = activityMBq.toFixed(4) + ' MBq';
       if (category === 'unsealed') {
         const rua = S.ruas.find(u => u.spaceID === space);
         if (!rua) return showErr('No Radiation Use Authorization (RUA) exists for ' + space + '. Register a RUA for this location before adding unsealed sources.');
@@ -2071,6 +2325,7 @@ function openSourceForm(category, editId) {
         sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
         quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
         manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
+        licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined,
         usageLog: []
       };
       if (category === 'sealed') {
@@ -2112,6 +2367,105 @@ function openLicenceChange(id) {
     const f = document.getElementById('lcFile');
     const fname = f.files.length ? f.files[0].name : '';
     applyLicenceChange(id, num, fname, document.getElementById('lcNotes').value.trim());
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BULK LICENCE RENEWAL MODAL
+// ════════════════════════════════════════════════════════════════
+function openLicenceRenewal() {
+  const oldLic = S.invLicence;
+  if (!oldLic) return;
+  const affected = S.sources.filter(s => s.category === S.cat && s.licenceNumber === oldLic);
+  if (affected.length === 0) { toast('⚠ No sources found with this licence', 'error'); return; }
+  
+  const html = '<div class="mback" id="mback"><div class="modal">' +
+    '<div class="mh"><h3><span class="acc">🔄</span> Renew Licence — Bulk Update</h3><button class="x" data-close>✕</button></div>' +
+    '<div class="note" style="margin-bottom:12px">Update the licence number for <b>' + affected.length + ' ' + (S.cat === 'sealed' ? 'sealed' : 'unsealed') + ' sources</b> currently holding licence <span class="mono" style="color:var(--txt)">' + esc(oldLic) + '</span>.</div>' +
+    '<div style="display:grid;gap:12px">' +
+    '<div class="fi"><label>New Licence Number *</label><input id="lrNum" placeholder="e.g., SS-2027-XXXX"></div>' +
+    '<div class="fi"><label>Notes</label><textarea id="lrNotes" rows="2" placeholder="Reason for renewal, e.g., Annual licence renewal 2027"></textarea></div>' +
+    '<div class="fi f" id="lrErrWrap" style="display:none"><div style="background:var(--red-l);color:var(--red);border-radius:6px;padding:8px 12px;font-size:11px" id="lrErr"></div></div>' +
+    '</div>' +
+    '<div class="mbtns"><button class="btn btn-o" data-close>Cancel</button><button class="btn btn-p" id="lrSubmit">Update All ' + affected.length + ' Sources</button></div>' +
+    '</div></div>';
+  document.getElementById('modalHost').innerHTML = html;
+  document.getElementById('lrSubmit').onclick = async () => {
+    const num = document.getElementById('lrNum').value.trim();
+    if (!num) { document.getElementById('lrErr').textContent = 'New licence number is required.'; document.getElementById('lrErrWrap').style.display = 'block'; return; }
+    const notes = document.getElementById('lrNotes').value.trim();
+    
+    // Update all affected sources
+    let updated = 0;
+    for (const s of affected) {
+      const oldNum = s.licenceNumber;
+      s.licenceNumber = num;
+      // Record in licence history
+      s.licenceHistory = s.licenceHistory || [];
+      s.licenceHistory.unshift({
+        id: uid('lh'),
+        licenceNumber: num,
+        changedDate: todayISO(),
+        changedBy: 'Marcus Chen',
+        notes: 'Bulk renewal from ' + oldNum + (notes ? ': ' + notes : '')
+      });
+      await persistSource(s);
+      updated++;
+    }
+    
+    // Clear the licence filter and refresh
+    S.invLicence = '';
+    closeModal();
+    renderAll();
+    toast('🔄 Licence renewed for ' + updated + ' sources — now ' + num, 'success');
+  };
+}
+
+// Batch licence renewal for selected sources
+function openBatchLicenceRenewal() {
+  const selected = [...S.selSources].map(id => S.sources.find(s => s.id === id)).filter(Boolean);
+  if (selected.length === 0) { toast('⚠ No sources selected', 'error'); return; }
+  
+  // Get unique licence numbers from selected sources
+  const licences = [...new Set(selected.map(s => s.licenceNumber || '(none)'))];
+  const licenceInfo = licences.length === 1 ? 'licence <span class="mono" style="color:var(--txt)">' + esc(licences[0]) + '</span>' : licences.length + ' different licences';
+  
+  const html = '<div class="mback" id="mback"><div class="modal">' +
+    '<div class="mh"><h3><span class="acc">🔄</span> Renew Licence — Selected Sources</h3><button class="x" data-close>✕</button></div>' +
+    '<div class="note" style="margin-bottom:12px">Update the licence number for <b>' + selected.length + ' selected sources</b> currently holding ' + licenceInfo + '.</div>' +
+    '<div style="display:grid;gap:12px">' +
+    '<div class="fi"><label>New Licence Number *</label><input id="blrNum" placeholder="e.g., SS-2027-XXXX"></div>' +
+    '<div class="fi"><label>Notes</label><textarea id="blrNotes" rows="2" placeholder="Reason for renewal"></textarea></div>' +
+    '<div class="fi f" id="blrErrWrap" style="display:none"><div style="background:var(--red-l);color:var(--red);border-radius:6px;padding:8px 12px;font-size:11px" id="blrErr"></div></div>' +
+    '</div>' +
+    '<div class="mbtns"><button class="btn btn-o" data-close>Cancel</button><button class="btn btn-p" id="blrSubmit">Update ' + selected.length + ' Sources</button></div>' +
+    '</div></div>';
+  document.getElementById('modalHost').innerHTML = html;
+  document.getElementById('blrSubmit').onclick = async () => {
+    const num = document.getElementById('blrNum').value.trim();
+    if (!num) { document.getElementById('blrErr').textContent = 'New licence number is required.'; document.getElementById('blrErrWrap').style.display = 'block'; return; }
+    const notes = document.getElementById('blrNotes').value.trim();
+    
+    let updated = 0;
+    for (const s of selected) {
+      const oldNum = s.licenceNumber || '(none)';
+      s.licenceNumber = num;
+      s.licenceHistory = s.licenceHistory || [];
+      s.licenceHistory.unshift({
+        id: uid('lh'),
+        licenceNumber: num,
+        changedDate: todayISO(),
+        changedBy: 'Marcus Chen',
+        notes: 'Bulk renewal from ' + oldNum + (notes ? ': ' + notes : '')
+      });
+      await persistSource(s);
+      updated++;
+    }
+    
+    S.selSources.clear();
+    closeModal();
+    renderAll();
+    toast('🔄 Licence renewed for ' + updated + ' sources — now ' + num, 'success');
   };
 }
 
@@ -2287,7 +2641,7 @@ function renderRuaDetail() {
       const ents = isoEntries(g);
       return '<div style="background:var(--bg);border:1px solid var(--brd);border-radius:6px;padding:8px 10px;margin-bottom:6px">' +
       '<div style="font-weight:600;color:var(--txt);font-size:12px">' + esc(g.piName) + '</div>' +
-      '<div class="tw" style="margin-top:6px"><table><thead><tr><th>Isotope</th><th>Limit (µCi)</th><th>Exp. (µCi)</th><th>Poss. (µCi)</th></tr></thead><tbody>' +
+      '<div class="tw" style="margin-top:6px"><table><thead><tr><th>Isotope</th><th>Limit (μCi)</th><th>Exp. (μCi)</th><th>Poss. (μCi)</th></tr></thead><tbody>' +
       ents.map(e => '<tr><td class="mono" style="font-weight:600">' + esc(e.iso) + '</td><td class="mono">' + (e.limit || 0) + '</td><td class="mono">' + (e.expUCi || 0) + '</td><td class="mono">' + (e.possUCi || 0) + '</td></tr>' +
         '<tr><td colspan="4" class="note" style="text-align:left">' + [e.physicalForm, e.chemicalForm].filter(Boolean).map(esc).join(' · ') + (e.description ? ' — ' + esc(e.description) : '') + '</td></tr>').join('') +
       '</tbody></table></div>' +
@@ -2324,9 +2678,9 @@ function isoEntryHtml(e, ii) {
     '<div class="fg">' +
     '<div class="fi"><label>Isotope *</label><select data-eiso><option value="">— Select —</option>' + isoOpts + '</select></div>' +
     '<div class="fi"><label>Physical Form</label><select data-ephys><option value="">— Select —</option>' + physOpts + '</select></div>' +
-    '<div class="fi"><label>Radionuclide Limit (µCi)</label><input type="number" min="0" step="any" data-elim value="' + (e.limit ?? '') + '"></div>' +
-    '<div class="fi"><label>Experimental (µCi)</label><input type="number" min="0" step="any" data-eexp value="' + (e.expUCi ?? '') + '"></div>' +
-    '<div class="fi"><label>Possession (µCi)</label><input type="number" min="0" step="any" data-eposs value="' + (e.possUCi ?? '') + '"></div>' +
+    '<div class="fi"><label>Radionuclide Limit (μCi)</label><input type="number" min="0" step="any" data-elim value="' + (e.limit ?? '') + '"></div>' +
+    '<div class="fi"><label>Experimental (μCi)</label><input type="number" min="0" step="any" data-eexp value="' + (e.expUCi ?? '') + '"></div>' +
+    '<div class="fi"><label>Possession (μCi)</label><input type="number" min="0" step="any" data-eposs value="' + (e.possUCi ?? '') + '"></div>' +
     '</div>' +
     '<div class="fi" style="margin-top:6px"><label>Chemical Form</label><input data-echem value="' + esc(e.chemicalForm || '') + '" placeholder="e.g., Tritiated water, labeled glucose"></div>' +
     '<div class="fi" style="margin-top:6px"><label>Experimental Description</label><input data-edesc value="' + esc(e.description || '') + '" placeholder="Describe the experimental use of this isotope"></div>' +
@@ -2833,8 +3187,9 @@ function testSummaryData(month) {
       if (typeof x === 'string') { if (x.startsWith(month)) swDone++; return; }
       if (!(x.date || '').startsWith(month)) return;
       swDone++;
-      if (x.result === 'positive') swPosFlags.push({ date: x.date, kind: 'Swipe test', item: u.spaceID, dept: u.department, result: 'Positive', followUp: x.followUp });
-      else if (x.result === 'adal') swAdalFlags.push({ date: x.date, kind: 'Swipe test', item: u.spaceID, dept: u.department, result: 'Above ADAL', followUp: x.followUp });
+      var swRes = x.overallResult || x.result || '';
+      if (swRes === 'positive') swPosFlags.push({ date: x.date, kind: 'Swipe test', item: u.spaceID, dept: u.department, result: 'Positive', followUp: x.followUp });
+      else if (swRes === 'adal') swAdalFlags.push({ date: x.date, kind: 'Swipe test', item: u.spaceID, dept: u.department, result: 'Above ADAL', followUp: x.followUp });
     });
   });
   const flags = [...leakFlags, ...swPosFlags, ...swAdalFlags].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -2845,19 +3200,31 @@ function testSummaryMonthlyCard(month) {
   var d = testSummaryData(month);
   var chip = function(n, label, hot) { return '<div style="background:var(--bg);border:1px solid ' + (hot && n ? 'rgba(239,68,68,.5)' : 'var(--brd)') + ';border-radius:8px;padding:8px 14px;min-width:118px"><div class="mono" style="font-size:20px;font-weight:800;color:' + (hot && n ? 'var(--red)' : 'var(--txt)') + '">' + n + '</div><div class="note" style="font-size:11px">' + label + '</div></div>'; };
   var html =
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
+    '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<span style="font-size:11px;font-weight:700;color:var(--txt);text-transform:uppercase;letter-spacing:.03em">🔬 Leak Tests</span>' +
+    '<div style="flex:1;height:1px;background:var(--brd)"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
     chip(d.leakDone, 'Leak Tests Conducted') + chip(d.leakPos, 'Leak Tests Positive', true) +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">' +
+    '<span style="font-size:11px;font-weight:700;color:var(--txt);text-transform:uppercase;letter-spacing:.03em">🧹 Swipe Tests</span>' +
+    '<div style="flex:1;height:1px;background:var(--brd)"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
     chip(d.swDone, 'Swipe Tests Conducted') + chip(d.swPos, 'Swipe Sites Positive', true) + chip(d.swAdal, 'Swipe Sites Above ADAL', true) +
+    '</div>' +
     '</div>';
   if (d.swAdal > 0) {
     var adalFlags = d.flags.filter(function(f) { return f.result === 'Above ADAL'; });
-    html += '<div style="background:rgba(127,29,29,.15);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:rgba(252,165,165,1)">' +
-      '<span style="font-weight:700;color:rgba(252,165,165,1)">ADAL Brief — </span>' +
+    html += '<div style="background:var(--red-l);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 14px;margin-top:14px;margin-bottom:12px;font-size:11px;color:var(--red)">' +
+      '<span style="font-weight:700;color:var(--red)">ADAL Brief — </span>' +
       d.swAdal + ' swipe sample' + (d.swAdal === 1 ? '' : 's') + ' exceeded the Administrative Decontamination Action Level (200 dpm/100 cm²) in ' + month + ':' +
       '<ul style="list-style:disc;margin:4px 0 0 16px;padding:0">' +
       adalFlags.map(function(f) { return '<li><span style="font-weight:600;color:var(--txt)">' + esc(f.item) + '</span> (' + esc(f.dept || '—') + ') on ' + fmtDate(f.date) + (f.followUp ? ' — ' + esc(f.followUp) : '') + '</li>'; }).join('') +
       '</ul>' +
-      '<span style="color:rgba(252,165,165,.7);margin-top:4px;display:block">ADAL reports have been issued to the respective users. Cleanup and re-survey are required.</span>' +
+      '<span style="color:var(--red);opacity:.7;margin-top:4px;display:block">ADAL reports have been issued to the respective users. Cleanup and re-survey are required.</span>' +
       '</div>';
   }
   html += '<h4 style="font-size:12px;font-weight:700;margin:6px 0">Follow-ups — Positive / Above ADAL <span class="note">(' + d.flags.length + ')</span></h4>';
@@ -3080,11 +3447,11 @@ function renderWasteSummary() {
         '<td class="mono">' + r.dn + '</td><td class="mono">' + fmtUCi(r.du) + '</td>' +
         '<td class="mono" style="font-weight:700;color:' + (r.sn > 0 ? 'var(--amb)' : 'var(--grn)') + '">' + r.sn + '</td>' +
         '<td class="mono">' + (remU * UCII_TO_MBQ).toFixed(3) + '</td></tr>'; }).join('') +
-      '</tbody><tfoot><tr style="border-top:2px solid var(--brd)"><td class="mono" style="font-weight:700">Total</td>' +
-      '<td class="mono" style="font-weight:700">' + tot.cn + '</td><td class="mono" style="font-weight:700">' + fmtUCi(tot.cu) + '</td>' +
-      '<td class="mono" style="font-weight:700">' + tot.dn + '</td><td class="mono" style="font-weight:700">' + fmtUCi(tot.du) + '</td>' +
-      '<td class="mono" style="font-weight:700">' + tot.sn + '</td>' +
-      '<td class="mono" style="font-weight:700">' + ((tot.cu - tot.du) * UCII_TO_MBQ).toFixed(3) + '</td></tr></tfoot></table></div>';
+      '</tbody><tfoot><tr style="border-top:2px solid var(--brd)"><td class="mono" style="font-weight:700;text-align:center">Total</td>' +
+      '<td class="mono" style="font-weight:700;text-align:center">' + tot.cn + '</td><td class="mono" style="font-weight:700;text-align:center">' + fmtUCi(tot.cu) + '</td>' +
+      '<td class="mono" style="font-weight:700;text-align:center">' + tot.dn + '</td><td class="mono" style="font-weight:700;text-align:center">' + fmtUCi(tot.du) + '</td>' +
+      '<td class="mono" style="font-weight:700;text-align:center">' + tot.sn + '</td>' +
+      '<td class="mono" style="font-weight:700;text-align:center">' + ((tot.cu - tot.du) * UCII_TO_MBQ).toFixed(3) + '</td></tr></tfoot></table></div>';
   }
   html += '<div class="note" style="margin-top:8px">Collected and disposed counts are filtered by the selected date range. "Still in Storage" shows containers collected within the range that have not yet been disposed. "Remaining" = collected − disposed activity.</div></div>';
   return html;
@@ -3114,7 +3481,7 @@ function exportDisposalPDF(idx) {
     const pctALI = ali > 0 ? (netMBq / (ali * UCII_TO_MBQ)) * 100 : 0;
     const t12 = HALF_LIFE_DAYS[w.isotope] || 0;
     const netDays = w.collectedDate && ins.disposedDate ? Math.round((Date.parse(ins.disposedDate) - Date.parse(w.collectedDate)) / 86400000) : 0;
-    return '<tr><td>' + esc(w.tagNo) + '</td><td>' + fmtDate(w.collectedDate) + '</td><td>' + fmtDate(ins.disposedDate) + '</td><td>' + esc(w.isotope) + '</td><td>' + netDays + '</td><td>' + origMBq.toFixed(5) + '</td><td>' + netMBq.toFixed(8) + '</td><td>' + pctALI.toFixed(6) + '</td><td>' + t12 + '</td><td>' + (ali || '') + '</td></tr>';
+    return '<tr><td>' + esc(w.tagNo) + '</td><td>' + fmtDate(w.collectedDate) + '</td><td>' + fmtDate(ins.disposedDate) + '</td><td>' + esc(w.isotope) + '</td><td>' + netDays + '</td><td>' + origMBq.toFixed(5) + '</td><td>' + netMBq.toFixed(8) + '</td><td>' + pctALI.toFixed(6) + '</td></tr>';
   }).join('');
 
   const doc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + recNo + ' — Radioactive Waste Disposal Records</title><style>' +
@@ -3131,16 +3498,16 @@ function exportDisposalPDF(idx) {
     '<div class="frow"><span class="lab">Date:</span><div class="uline">' + fmtDate(ins.disposedDate) + '</div></div>' +
     '<div class="frow"><span class="lab">Counting Instrument:</span><div class="uline"></div></div>' +
     '<div class="frow"><span class="lab">Worked by:</span><div class="uline">' + esc(ins.disposedBy || '') + '</div></div>' +
-    '<table><thead><tr><th>Type of Radionuclide</th><th>Physical Form</th><th>No. of boxes / containers</th><th>Total Disposal Activity (estimated) (MBq)</th><th>ALI (µCi)</th><th>% of ALI</th></tr></thead><tbody>' +
-    rows.map(r => { const aliMBq = r.ali * UCII_TO_MBQ; const pct = aliMBq > 0 ? (r.mbq / aliMBq) * 100 : 0; return '<tr><td>' + esc(r.iso) + '</td><td>' + esc(r.form) + '</td><td>' + r.n + '</td><td>' + r.mbq.toFixed(2) + '</td><td>' + r.ali + '</td><td>' + pct.toFixed(4) + '%</td></tr>'; }).join('') +
-    '<tr><td colspan="3" style="text-align:right;font-weight:700">Total:</td><td style="font-weight:700">' + totMBq.toFixed(2) + '</td><td></td><td></td></tr>' +
+    '<table><thead><tr><th>Type of Radionuclide</th><th>Physical Form</th><th>No. of boxes / containers</th><th>Total Disposal Activity (estimated) (MBq)</th><th>% of ALI</th></tr></thead><tbody>' +
+    rows.map(r => { const aliMBq = r.ali * UCII_TO_MBQ; const pct = aliMBq > 0 ? (r.mbq / aliMBq) * 100 : 0; return '<tr><td>' + esc(r.iso) + '</td><td>' + esc(r.form) + '</td><td>' + r.n + '</td><td>' + r.mbq.toFixed(2) + '</td><td>' + pct.toFixed(4) + '%</td></tr>'; }).join('') +
+    '<tr><td colspan="3" style="text-align:right;font-weight:700">Total:</td><td style="font-weight:700">' + totMBq.toFixed(2) + '</td><td></td></tr>' +
     '</tbody></table>' +
     '<div class="frow"><span class="lab">Disposal Date:</span><div class="uline" style="max-width:240px">' + fmtDate(ins.disposedDate) + '</div></div>' +
     '<div class="frow"><span class="lab">Destination:</span><div class="uline" style="max-width:320px">' + esc(dest) + '</div></div>' +
     '<div class="frow"><span class="lab">Disposal by:</span><div class="uline" style="max-width:260px">' + esc(ins.disposedBy || '') + '</div></div>' +
     '<div class="frow"><span class="lab">Signature:</span><div class="uline"></div></div>' +
     '<h2 style="font-size:14px;text-align:center;margin-top:30px;text-decoration:underline">Disposal Records for Radioactive Wastes ' + rows.map(r => esc(r.iso)).join(' &amp; ') + ' Liquid on ' + fmtDate(ins.disposedDate) + '</h2>' +
-    '<table><thead><tr><th>Tag No.</th><th>Ref Date</th><th>Disposal Date</th><th>Nuclide</th><th>Net Day</th><th>Original Activity (MBq)</th><th>Net Activity (MBq)</th><th>% of ALI</th><th>Half life</th><th>ALI</th></tr></thead><tbody>' +
+    '<table><thead><tr><th>Tag No.</th><th>Ref Date</th><th>Disposal Date</th><th>Nuclide</th><th>Net Day</th><th>Original Activity (MBq)</th><th>Net Activity (MBq)</th><th>% of ALI</th></tr></thead><tbody>' +
     detailRows +
     '</tbody></table>' +
     '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},300)}</scr' + 'ipt>' +
@@ -3432,8 +3799,15 @@ function renderAll() {
 }
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], #invAdd, #invAdd2, #invExport, #batchVerify, #batchClear, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
+  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], [data-chk], #invAdd, #invAdd2, #invExport, #invImport, #invRenewLicence, #batchVerify, #batchLicence, #batchClear, #selAll, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
   if (!t) return;
+  // Handle individual checkbox selection
+  if (t.dataset.chk) {
+    const id = t.dataset.chk;
+    if (t.checked) S.selSources.add(id); else S.selSources.delete(id);
+    renderInventory();
+    return;
+  }
   if (S.invMenuOpen && !t.closest('.tabdd')) { S.invMenuOpen = false; const w = document.querySelector('.tabdd.open'); if (w) w.classList.remove('open'); }
   const act = t.dataset.act;
   if (t.dataset.invgo) {
@@ -3478,8 +3852,21 @@ document.addEventListener('click', async (e) => {
   if (t.hasAttribute('data-close')) { closeModal(); return; }
   if (t.id === 'invAdd' || t.id === 'invAdd2') { openSourceForm(S.cat); return; }
   if (t.id === 'invExport') { exportCSV(); return; }
+  if (t.id === 'invImport') { importCSV(); return; }
+  if (t.id === 'invRenewLicence') { openLicenceRenewal(); return; }
   if (t.id === 'batchVerify') { await batchMarkChecked(); return; }
+  if (t.id === 'batchLicence') { openBatchLicenceRenewal(); return; }
   if (t.id === 'batchClear') { S.selSources.clear(); renderInventory(); return; }
+  if (t.id === 'selAll') {
+    const rows = filteredSources();
+    if (t.checked) {
+      rows.forEach(s => S.selSources.add(s.id));
+    } else {
+      S.selSources.clear();
+    }
+    renderInventory();
+    return;
+  }
   if (t.id === 'ruaAdd') { openRuaForm(null); return; }
   if (t.id === 'dSubmit') { await submitDose(); return; }
   if (t.id === 'rosterAdd') { openRosterForm(); return; }
@@ -3532,6 +3919,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'iaCheck') { await markChecked(S.detailId); return; }
   if (act === 'licenceChange') { openLicenceChange(S.detailId); return; }
     if (act === 'iaEdit') { openSourceForm('apparatus', S.detailId); return; }
+    if (act === 'sealedEdit') { openSourceForm('sealed', S.detailId); return; }
     if (act === 'iaToPU') { openPossessUseForm(S.detailId); return; }
     if (act === 'iaDecom') { openDecommissionForm(S.detailId); return; }
   if (act === 'ruaRenew') { await renewRua(S.ruaDetailId); return; }
@@ -3560,6 +3948,10 @@ document.addEventListener('input', (e) => {
   if (e.target.id === 'wasteDisposedMonth') { S.wasteDisposedMonth = e.target.value || ''; renderWaste(); }
   if (e.target.id === 'ruaShowInactive') { S.ruaShowInactive = e.target.checked; renderRua(); }
   if (e.target.id === 'isoSearch') { S.isoSearch = e.target.value; renderIsotopes(); const el = document.getElementById('isoSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'invLicence') { S.invLicence = e.target.value; renderInventory(); }
 });
 
 // ════════════════════════════════════════════════════════════════
