@@ -2152,8 +2152,8 @@ function openSourceForm(category, editId) {
       (category === 'sealed' ?
         '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' +
         '<div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
-    (category !== 'sealed' ? '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="fSpace">' + spaceOpts + '</select></div>' +
-    '<div class="fi"><label>Custodian</label><input id="fCustodian" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' : '') +
+        '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="' + (category === 'sealed' ? 'fSpace_sealed' : 'fSpace') + '">' + spaceOpts + '</select></div>' +
+        '<div class="fi"><label>Custodian</label><input id="' + (category === 'sealed' ? 'fCustodian_sealed' : 'fCustodian') + '" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' +
         '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
         '<div class="fg"><div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div>' +
         '<div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
@@ -2172,8 +2172,8 @@ function openSourceForm(category, editId) {
   const html = '<div class="mback" id="mback"><div class="modal">' +
     '<div class="mh"><h3><span class="acc">' + (category === 'apparatus' ? '⚙' : '☢') + '</span> ' + (editing ? 'Edit ' : 'Register ') + (category === 'apparatus' ? 'Irradiating Apparatus' : (category === 'sealed' ? 'Sealed Source' : 'Unsealed Source')) + '</h3><button class="x" data-close>✕</button></div>' +
     '<div style="display:grid;gap:12px">' + fields +
-    '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="fSpace">' + spaceOpts + '</select></div>' +
-    '<div class="fi"><label>Custodian</label><input id="fCustodian" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' +
+    (category !== 'sealed' ? '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="fSpace">' + spaceOpts + '</select></div>' +
+    '<div class="fi"><label>Custodian</label><input id="fCustodian" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' : '') +
     '<div class="fi f" id="fErrWrap" style="display:none"><div style="background:var(--red-l);border:1px solid rgba(239,68,68,.4);color:var(--red);border-radius:6px;padding:8px 12px;font-size:11px" id="fErr"></div></div>' +
     '</div>' +
     '<div class="mbtns"><button class="btn btn-o" data-close>Cancel</button><button class="btn btn-p" id="fSubmit">' + (editing ? 'Save Changes' : (category === 'apparatus' ? 'Register Apparatus' : 'Register Source')) + '</button></div>' +
