@@ -2733,7 +2733,7 @@ function renderRuaDetail() {
     '<div class="note" style="margin-bottom:12px">' + esc(u.department) + ' · <span class="bdg ' + (u.type === 'Communal' ? 'b-communal' : 'b-individual') + '" style="vertical-align:middle">' + u.type + '</span></div>';
   const isInactive = u.status === 'inactive';
   h += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="btn btn-p btn-s" data-act="ruaSwipe">🧪 Conduct Swipe Test</button><button class="btn btn-o btn-s" data-act="ruaEdit">✏ Edit RUA</button><button class="btn btn-o btn-s" data-act="ruaRenew">🔄 Renew for 1 Year</button><button class="btn ' + (isInactive ? 'btn-p' : 'btn-r') + ' btn-s" data-act="ruaToggleStatus">' + (isInactive ? '✓ Set Active' : '⊘ Set Inactive') + '</button></div>';
-  if (u.type === 'Individual' && u.personInCharge) {
+  if (u.personInCharge) {
     h += '<div class="kv" style="margin-bottom:12px"><div class="k">Person in Charge</div><div class="v">' + esc(u.personInCharge) + '</div></div>';
   }
   h += '<div class="kv" style="margin-bottom:12px"><div class="k">RUA No.</div><div class="v mono">' + esc(u.ruaNo || '—') + '</div></div>';
@@ -2831,7 +2831,7 @@ function renderRuaEdit() {
     '<div class="fi"><label>Space ID *</label><select id="rfSpace">' + spaceOpts + '</select></div>' +
     '<div class="fi"><label>Authorization Type *</label><select id="rfType"><option ' + (editing && editing.type === 'Individual' ? '' : 'selected') + '>Communal</option><option ' + (editing && editing.type === 'Individual' ? 'selected' : '') + '>Individual</option></select></div>' +
     '<div class="fi"><label>Expiry Date * (renewed annually)</label><input type="date" id="rfExpiry" value="' + ((editing && editing.expiryDate) || addYearISO()) + '"><div class="hint">An alert is raised one month before expiry</div></div>' +
-    '<div class="fi" id="rfPicWrap" style="display:' + (editing && editing.type === 'Individual' ? 'flex' : 'none') + '"><label>Person in Charge *</label><input id="rfPic" value="' + esc(editing && editing.personInCharge || '') + '" placeholder="Name of the person in charge"></div>' +
+    '<div class="fi" id="rfPicWrap" style="display:' + (editing ? 'flex' : 'none') + '"><label>Person in Charge *</label><input id="rfPic" value="' + esc(editing && editing.personInCharge || '') + '" placeholder="Name of the person in charge"></div>' +
     '</div>' +
     '<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:11px;text-transform:uppercase;color:var(--txt2)">PI Groups</b><button class="icobtn" id="rfAddGrp">+ Add Group</button></div><div id="rfGroups">' + groups.map(groupRowHtml).join('') + '</div></div>' +
     '<div><b style="font-size:11px;text-transform:uppercase;color:var(--txt2)">Safety Controls *</b><div class="hint" style="margin-bottom:6px">Required controls for this location</div>' +
@@ -2945,10 +2945,10 @@ function renderRuaEdit() {
     if (editing) {
       rua = S.ruas.find(x => x.id === editing.id);
       const changes = diffRuaGroups(rua.groups, builtGroups);
-      Object.assign(rua, { ruaNo, spaceID: space, type, department: dept, personInCharge: type === 'Individual' ? pic : undefined, expiryDate: expiry, safetyControls: controls, groups: builtGroups });
+      Object.assign(rua, { ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, expiryDate: expiry, safetyControls: controls, groups: builtGroups });
       if (changes.length) { rua.changeHistory = rua.changeHistory || []; rua.changeHistory.push({ id: uid('rh'), date: todayISO(), changes }); }
     } else {
-      rua = { id: uid('rua'), ruaNo, spaceID: space, type, department: dept, personInCharge: type === 'Individual' ? pic : undefined, expiryDate: expiry, addedDate: todayISO(), safetyControls: controls, groups: builtGroups, changeHistory: [{ id: uid('rh'), date: todayISO(), changes: ['Authorization created'] }] };
+      rua = { id: uid('rua'), ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, expiryDate: expiry, addedDate: todayISO(), safetyControls: controls, groups: builtGroups, changeHistory: [{ id: uid('rh'), date: todayISO(), changes: ['Authorization created'] }] };
       S.ruas.push(rua);
     }
     await persistRua(rua);
