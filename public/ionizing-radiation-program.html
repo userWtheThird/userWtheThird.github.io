@@ -1387,17 +1387,39 @@ function renderDetailPanel() {
       h += '<div class="note" style="margin-bottom:8px">' + esc(s.location || '') + ' · ' + esc(deptOf(s)) + '</div>';
       h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
         '<button class="btn btn-o btn-s" data-act="unsealedEdit">📝 Edit</button>' +
+        '<button class="btn btn-p btn-s" data-act="swipeTest">🧫 Swipe Test</button>' +
+        '<button class="btn btn-o btn-s" data-act="usageLog">🧪 Usage Log</button>' +
         '</div>';
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
-      h += '<div class="card" style="padding:12px;border-color:' + (swDue ? 'rgba(239,68,68,.4)' : 'var(--brd)') + '"><h3 class="acc" style="margin-bottom:8px">🧫 Location Swipe Test — ' + esc(s.spaceID || s.location || '—') + '</h3>' +
-        '<div class="note" style="margin-bottom:8px">Swipe surveys are scheduled per RUA location — one RUA per room where unsealed work is done, shared by every isotope stock here.</div>' +
-        (rua ? '<div class="kv" style="display:grid;gap:8px">' +
-        '<div class="kv"><div class="k">Last Swipe Test</div><div class="v">' + fmtDate(rua.lastSwipeTest) + '</div></div>' +
-        '<div class="kv"><div class="k">Next Due</div><div class="v">' + fmtDate(rua.nextSwipeTest) + (swDue ? ' <span class="bdg b-alert" style="padding:1px 6px">OVERDUE</span>' : '') + '</div></div>' +
-        '</div>' +
-        '<div class="hist" style="margin-top:10px">' + ((rua.swipeHistory || []).length ? rua.swipeHistory.map((x, xi) => { var hasDal = typeof x !== 'string' && x.sites && x.sites.some(function(s) { return s.classification === 'above_dal'; }); return '<div class="hi" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1">' + (typeof x === 'string' ? stripHtmlTags(x) : swipeEntryText(x)) + '</div><div style="display:flex;gap:4px;flex-shrink:0">' + (typeof x !== 'string' && x.sites ? '<button class="btn btn-o btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-swprint="' + rua.id + ':' + xi + '">🖨 Report</button>' + (hasDal ? '<button class="btn btn-r btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-adalprint="' + rua.id + ':' + xi + '">🚨 ADAL Report</button>' : '') : '') + '</div></div>'; }).join('') : '<div class="note">No swipe tests recorded for this room yet</div>') + '</div>' +
-        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="swipeTest">🧫 Conduct Swipe Test</button>' : '<div class="note" style="margin-top:8px">⚠ No RUA registered for this location — register one under Radiation Use Authorizations to schedule swipe tests.</div>') + '</div>';
+      // Filter swipe history: only show non-clean entries (above ADAL / above DAL / positive)
+      const flaggedSwipes = (rua && rua.swipeHistory || []).filter(function(x) { return typeof x !== 'string' && x.overallResult && x.overallResult !== 'clean'; });
+      h += '<div class="card" style="padding:10px;border-color:' + (swDue ? 'rgba(239,68,68,.4)' : 'var(--brd)') + '"><h3 class="acc" style="margin-bottom:6px;font-size:12px"> Location Swipe Test — ' + esc(s.spaceID || s.location || '—') + (swDue ? ' <span class="bdg b-alert" style="padding:1px 6px;font-size:9px">OVERDUE</span>' : '') + '</h3>';
+      if (rua) {
+        h += '<div class="note" style="margin-bottom:6px;font-size:11px">Next due: ' + fmtDate(rua.nextSwipeTest) + ' · Last: ' + fmtDate(rua.lastSwipeTest) + '</div>';
+        if (flaggedSwipes.length) {
+          h += '<div class="hist">' + flaggedSwipes.map(function(x) {
+            var xi = rua.swipeHistory.indexOf(x);
+            var hasAdal = x.sites && x.sites.some(function(si) { return si.classification === 'above_dal'; });
+            var hasDal = x.sites && x.sites.some(function(si) { return si.classification === 'above_adal'; });
+            var clr = hasAdal ? 'var(--red)' : 'var(--amb)';
+            var lbl = hasAdal ? 'ABOVE ADAL' : (hasDal ? 'ABOVE DAL' : 'POSITIVE');
+            var flagSites = (x.sites || []).filter(function(si) { return si.classification === 'above_dal' || si.classification === 'above_adal' || si.classification === 'positive'; });
+            return '<div class="hi" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--brd)">' +
+              '<div style="flex:1;min-width:0"><span style="font-size:11px"><b>' + esc(x.date || '') + '</b> <span class="bdg" style="background:' + clr + '22;color:' + clr + ';font-size:9px;margin-left:4px">' + lbl + '</span></span>' +
+              '<div class="note" style="font-size:10px;margin-top:2px">' + flagSites.map(function(si) { return esc(si.location) + ': <b>' + si.dpm + ' dpm</b>'; }).join(' · ') + '</div></div>' +
+              '<div style="display:flex;gap:4px;flex-shrink:0">' +
+                '<button class="btn btn-o btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-swprint="' + rua.id + ':' + xi + '">🖨 Report</button>' +
+                (hasAdal ? '<button class="btn btn-r btn-s" style="white-space:nowrap;padding:3px 8px;font-size:10px" data-adalprint="' + rua.id + ':' + xi + '"> ADAL</button>' : '') +
+              '</div></div>';
+          }).join('') + '</div>';
+        } else {
+          h += '<div class="note" style="font-size:11px">No flagged swipes — all clear</div>';
+        }
+      } else {
+        h += '<div class="note" style="font-size:11px">⚠ No RUA for this location</div>';
+      }
+      h += '</div>';
       const spent = (s.usageLog || []).reduce((a, u) => a + (u.activityUCi || 0), 0);
       const remaining = parseActivityToUCi(s.activity) - spent;
       h += '<div class="card" style="padding:12px;margin-top:12px"><h3 class="acc" style="margin-bottom:8px">📦 Acquisition</h3>' +
@@ -1410,7 +1432,7 @@ function renderDetailPanel() {
       h += '<div class="card" style="padding:12px;margin-top:12px"><h3 class="acc" style="margin-bottom:8px">🧪 Usage Log (Spent)</h3>' +
         '<div class="hist">' + ((s.usageLog || []).length ? s.usageLog.map(u => '<div class="hi"><div><b class="mono">' + fmtDate(u.date) + '</b> — ' + esc(u.volume || '') + ', <span class="mono">' + fmtUCi(u.activityUCi || 0) + ' µCi</span><br><span class="note">by ' + esc(u.by || '—') + (u.notes ? ' — ' + esc(u.notes) : '') + '</span></div></div>').join('') : '<div class="note">No consumption recorded yet</div>') + '</div>' +
         (spent ? '<div class="note" style="margin-top:8px">Spent to date: <b>' + fmtUCi(spent) + ' µCi</b>' + (remaining > 0 ? ' · Nominal remaining: <b>' + fmtUCi(remaining) + ' µCi</b>' : '') + '</div>' : '') +
-        '<button class="btn btn-o" style="width:100%;margin-top:10px" data-act="usageLog">➕ Record Consumption</button></div>';
+        '</div>';
     }
   }
   h += '</div>';
