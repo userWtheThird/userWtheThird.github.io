@@ -2115,6 +2115,21 @@ function parseCSVLine(line) {
 // ════════════════════════════════════════════════════════════════
 //  SOURCE REGISTRATION MODAL
 // ════════════════════════════════════════════════════════════════
+function incrementSourceNo(base, offset) {
+  if (!base) return base;
+  if (offset === 0) return base;
+  // Try to find trailing number pattern (e.g., CS-001 -> CS-002)
+  const m = base.match(/^(.*?)(\d+)$/);
+  if (m) {
+    const prefix = m[1];
+    const num = parseInt(m[2]);
+    const pad = m[2].length;
+    return prefix + String(num + offset).padStart(pad, '0');
+  }
+  // No trailing number — append -N
+  return base + '-' + (offset + 1);
+}
+
 function openSourceForm(category, editId) {
   const editing = editId ? S.sources.find(x => x.id === editId) : null;
   const spaceOpts = S.locations.map(l => '<option value="' + l.spaceID + '" data-dept="' + esc(l.department) + '">' + l.spaceID + ' — ' + esc(l.building) + ' ' + esc(l.roomNumber) + ' (' + esc(l.department) + ')</option>').join('');
@@ -2135,16 +2150,18 @@ function openSourceForm(category, editId) {
   } else {
     fields =
       (category === 'sealed' ?
-        '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
-        '<div class="fg"><div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
-        '<div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div></div>' +
-        '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq" selected>MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
-        '<div class="fi"><label>Reference Date</label><input id="fRefDate" type="date"></div></div>' +
-        '<div class="fg"><div class="fi"><label>Activity (converted)</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
-        '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div>' +
-        '<div class="fi"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div></div>' +
+        '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' +
         '<div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
-        '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' :
+    (category !== 'sealed' ? '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="fSpace">' + spaceOpts + '</select></div>' +
+    '<div class="fi"><label>Custodian</label><input id="fCustodian" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' : '') +
+        '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
+        '<div class="fg"><div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div>' +
+        '<div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
+        '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq" selected>MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
+        '<div class="fi"><label>Convert</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div></div>' +
+        '<div class="fg"><div class="fi"><label>Reference Date</label><input id="fRefDate" type="date"></div>' +
+        '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div></div>' +
+        '<div class="fi f"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div>' :
         '<div class="fi f"><label>Source Name *</label><input id="fName" placeholder="e.g., H-3 Thymidine"></div>' +
         '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
         '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq" selected>GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
@@ -2163,10 +2180,10 @@ function openSourceForm(category, editId) {
     '</div></div>';
   document.getElementById('modalHost').innerHTML = html;
 
-  const selSpace = document.getElementById('fSpace');
+  const selSpace = document.getElementById(category === 'sealed' ? 'fSpace_sealed' : 'fSpace');
   if (editing) {
     selSpace.value = editing.spaceID || editing.location || selSpace.value;
-    if (editing.custodian) document.getElementById('fCustodian').value = editing.custodian;
+    if (editing.custodian) document.getElementById(category === 'sealed' ? 'fCustodian_sealed' : 'fCustodian').value = editing.custodian;
     if (category === 'apparatus') {
       document.getElementById('fDesc').value = editing.equipmentDescription || '';
       document.getElementById('fLicence').value = editing.licenceNumber || '';
@@ -2360,6 +2377,25 @@ function openSourceForm(category, editId) {
       }
       }
     }
+    if (!editing && category === 'sealed' && source.quantity > 1) {
+      // Multi-entry: create one source per unit with auto-incremented source numbers
+      const baseSourceNo = source.sourceNumber || '';
+      const qty = source.quantity;
+      const createdIds = [];
+      for (let qi = 0; qi < qty; qi++) {
+        const src = Object.assign({}, source, { id: uid('rad'), sourceNumber: incrementSourceNo(baseSourceNo, qi) });
+        src.quantity = 1;
+        S.sources.push(src);
+        await persistSource(src);
+        createdIds.push(src.id);
+      }
+      S.detailId = createdIds[0];
+      closeModal();
+      toast('☢ ' + qty + ' sealed sources registered' + (baseSourceNo ? ' (' + incrementSourceNo(baseSourceNo, 0) + ' – ' + incrementSourceNo(baseSourceNo, qty - 1) + ')' : ''));
+      renderAll();
+      return;
+    }
+    if (!editing) S.sources.push(source);
     if (!editing) S.sources.push(source);
     await persistSource(source);
     S.detailId = source.id;
