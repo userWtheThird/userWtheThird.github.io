@@ -1386,7 +1386,7 @@ function renderDetailPanel() {
       h += '<h3 style="font-size:13px;font-weight:800;margin-bottom:2px">' + esc(s.sourceName) + ' <span class="bdg" style="background:' + stColor + '22;color:' + stColor + ';font-size:10px;vertical-align:middle;margin-left:4px">' + esc(stLabel) + '</span></h3>';
       h += '<div class="note" style="margin-bottom:8px">' + esc(s.location || '') + ' · ' + esc(deptOf(s)) + '</div>';
       h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
-        '<button class="btn btn-o btn-s" data-act="unsealedEdit"> Edit</button>' +
+        '<button class="btn btn-o btn-s" data-act="unsealedEdit">📝 Edit</button>' +
         '</div>';
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
