@@ -1230,10 +1230,12 @@ function renderInventory() {
     html += '<div class="empty"><div class="big">☢️</div>No sources found in this category.<br><br><button class="btn btn-p" id="invAdd2">+ Register the first one</button></div>';
   } else if (S.cat === 'sealed') {
     html += '<h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--txt)"> Sealed Sources <span class="note">(' + rows.length + ')</span></h3>';
-    html += '<div class="tw"><table><thead><tr><th style="width:30px"><input type="checkbox" class="chk" id="selAll" title="Select all"></th><th>Source No.</th><th>Description</th><th>Radionuclide</th><th>Activity</th><th>Ref. Date</th><th>Qty</th><th>Location</th><th>Leak Test</th><th>Inv. Check</th></tr></thead><tbody>' +
+    html += '<div class="tw"><table><thead><tr><th style="width:30px"><input type="checkbox" class="chk" id="selAll" title="Select all"></th><th>Source No.</th><th>Description</th><th>Radionuclide</th><th>Activity</th><th>Ref. Date</th><th>Qty</th><th>Status</th><th>Location</th><th>Leak Test</th><th>Inv. Check</th></tr></thead><tbody>' +
       rows.map(s => {
         const chk = checkStatus(s);
         const leakDays = s.nextLeakTest ? daysUntil(s.nextLeakTest) : null;
+        const stColor = {'purchasing':'var(--blue)','in storage':'var(--txt)','in use':'var(--green)','disposed':'var(--red)'}[s.sourceStatus] || 'var(--txt)';
+        const stLabel = {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || '--';
         return '<tr class="sel ' + (S.detailId === s.id ? 'hl' : '') + '" data-open="' + s.id + '">' +
           '<td onclick="event.stopPropagation()"><input type="checkbox" class="chk" data-chk="' + s.id + '" ' + (S.selSources.has(s.id) ? 'checked' : '') + '></td>' +
           '<td class="mono">' + esc(s.sourceNumber || '—') + '</td>' +
@@ -1242,6 +1244,7 @@ function renderInventory() {
           '<td class="mono">' + esc(s.activityReference || s.activity) + '</td>' +
           '<td class="mono">' + (s.referenceDate ? fmtDate(s.referenceDate) : '<span class="note">—</span>') + '</td>' +
           '<td class="mono">' + (s.quantity || 1) + '</td>' +
+          '<td><span class="bdg" style="background:' + stColor + '22;color:' + stColor + '">' + esc(stLabel) + '</span></td>' +
           '<td>' + esc(s.location) + '</td>' +
           '<td>' + (s.nextLeakTest ? fmtDate(s.nextLeakTest) + ' <span class="note">(' + (leakDays <= 0 ? 'overdue' : leakDays + 'd') + ')</span>' : '<span class="note">—</span>') + '</td>' +
           '<td><span class="bdg ' + chk.cls + '">' + chk.label + '</span></td></tr>';
@@ -1342,6 +1345,16 @@ function renderDetailPanel() {
   } else {
     if (s.category === 'sealed') {
       const chk = checkStatus(s);
+      const stLabel = {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || 'In Storage';
+      const stColor = {'purchasing':'var(--blue)','in storage':'var(--txt)','in use':'var(--green)','disposed':'var(--red)'}[s.sourceStatus] || 'var(--txt)';
+      h += '<div style="display:grid;gap:8px;margin-bottom:12px">' +
+        '<div class="card" style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center">' +
+        '<div class="kv"><div class="k">Status</div><div class="v"><span class="bdg" style="background:' + stColor + '22;color:' + stColor + '">' + esc(stLabel) + '</span></div></div>' +
+        '</div>' +
+        '<div style="display:grid;gap:8px">' +
+        '<button class="btn btn-o" data-act="sealedEdit">📝 Edit Sealed Source Details</button>' +
+        '<button class="btn btn-p" data-act="licenceChange">✏ Change / Renew Licence Number</button>' +
+        '</div></div>';
       h += '<div class="card" style="margin-bottom:12px;padding:12px"><h3 class="acc" style="margin-bottom:8px"> Reference Activity</h3>' +
         '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
         '<div class="kv"><div class="k">Activity (Reference)</div><div class="v mono">' + esc(s.activityReference || s.activity || '—') + '</div></div>' +
@@ -1382,10 +1395,6 @@ function renderDetailPanel() {
         ((s.leakTestResult || s.leakTestCounts != null) ? leakResultKv(s) : '') +
         '<div class="hist" style="margin-top:10px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
         '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest"> Conduct Leak Test</button></div>' +
-        '<div style="display:grid;gap:8px;margin-top:12px">' +
-        '<button class="btn btn-o" data-act="sealedEdit"> Edit Sealed Source Details</button>' +
-        '<button class="btn btn-p" data-act="licenceChange">✏ Change / Renew Licence Number</button>' +
-        '</div>';
     } else {
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
@@ -2144,6 +2153,7 @@ function openSourceForm(category, editId) {
         '<div class="fg"><div class="fi"><label>Activity (converted)</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
         '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div>' +
         '<div class="fi"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div></div>' +
+        '<div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
         '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' :
         '<div class="fi f"><label>Source Name *</label><input id="fName" placeholder="e.g., H-3 Thymidine"></div>' +
         '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div>' +
@@ -2179,6 +2189,7 @@ function openSourceForm(category, editId) {
       if (editing.quantity) document.getElementById('fQty').value = editing.quantity;
       if (editing.manufacturer) document.getElementById('fMfr').value = editing.manufacturer;
       if (editing.licenceNumber) document.getElementById('fLicence').value = editing.licenceNumber;
+      if (editing.sourceStatus) document.getElementById('fStatus').value = editing.sourceStatus;
       // Parse activity string for editing
       if (editing.activity) {
         const m = String(editing.activity).match(/([\d.]+)\s*(Bq|kBq|MBq|GBq|TBq|uCi|µCi|mCi|Ci)/i);
@@ -2325,6 +2336,7 @@ function openSourceForm(category, editId) {
           sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
           quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
           manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
+          sourceStatus: document.getElementById('fStatus') ? document.getElementById('fStatus').value : 'in storage',
           licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined
         });
         source = editing;
@@ -2342,6 +2354,7 @@ function openSourceForm(category, editId) {
         sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
         quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
         manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
+          sourceStatus: document.getElementById('fStatus') ? document.getElementById('fStatus').value : 'in storage',
         licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined,
         usageLog: []
       };
