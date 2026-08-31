@@ -2190,6 +2190,9 @@ function openSourceForm(category, editId) {
       document.getElementById('fPurchase').value = editing.purchaseLicenceNo || '';
       document.getElementById('fImport').value = editing.importLicenceNo || '';
     } else if (category === 'sealed') {
+      document.getElementById('fName').value = editing.sourceName || '';
+      if (editing.isotope) document.getElementById('fIsotope').value = editing.isotope;
+      if (editing.referenceDate) document.getElementById('fRefDate').value = editing.referenceDate;
       if (editing.sourceNumber) document.getElementById('fSourceNo').value = editing.sourceNumber;
       if (editing.quantity) document.getElementById('fQty').value = editing.quantity;
       if (editing.manufacturer) document.getElementById('fMfr').value = editing.manufacturer;
@@ -2205,6 +2208,8 @@ function openSourceForm(category, editId) {
         }
       }
     } else {
+      document.getElementById('fName').value = editing.sourceName || '';
+      if (editing.isotope) document.getElementById('fIsotope').value = editing.isotope;
       if (editing.acquiredDate) document.getElementById('fAcquired').value = editing.acquiredDate;
       if (editing.volume) document.getElementById('fVolume').value = editing.volume;
       if (editing.purchasedBy) document.getElementById('fPurchasedBy').value = editing.purchasedBy;
