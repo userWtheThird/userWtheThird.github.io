@@ -1347,54 +1347,39 @@ function renderDetailPanel() {
       const chk = checkStatus(s);
       const stLabel = {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || 'In Storage';
       const stColor = {'purchasing':'var(--blue)','in storage':'var(--txt)','in use':'var(--green)','disposed':'var(--red)'}[s.sourceStatus] || 'var(--txt)';
-      h += '<div style="display:grid;gap:8px;margin-bottom:12px">' +
-        '<div class="card" style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center">' +
-        '<div class="kv"><div class="k">Status</div><div class="v"><span class="bdg" style="background:' + stColor + '22;color:' + stColor + '">' + esc(stLabel) + '</span></div></div>' +
-        '</div>' +
-        '<div style="display:grid;gap:8px">' +
-        '<button class="btn btn-o" data-act="sealedEdit">📝 Edit Sealed Source Details</button>' +
-        '<button class="btn btn-p" data-act="licenceChange">✏ Change / Renew Licence Number</button>' +
-        '</div></div>';
-      h += '<div class="card" style="margin-bottom:12px;padding:12px"><h3 class="acc" style="margin-bottom:8px"> Reference Activity</h3>' +
-        '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-        '<div class="kv"><div class="k">Activity (Reference)</div><div class="v mono">' + esc(s.activityReference || s.activity || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Reference Date</div><div class="v">' + fmtDate(s.referenceDate) + '</div></div>' +
-        '</div></div>';
-      // Check History (collapsible)
-      const chev = S.checkHistoryOpen ? '▾' : '▸';
-      h += '<div class="card" style="margin-bottom:12px;padding:12px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" data-toggle="checkHistory">' +
-        '<h3 style="margin:0"><span class="acc">🕓</span> Check History <span class="note">(' + (s.checkHistory || []).length + ')</span></h3>' +
-        '<span class="note" style="font-weight:600">' + chev + (S.checkHistoryOpen ? ' hide' : ' show') + '</span></div>' +
-        (S.checkHistoryOpen ? '<div class="hist" style="margin-top:10px">' +
-        (s.checkHistory && s.checkHistory.length ? s.checkHistory.map(c => '<div class="hi">' + esc(c) + '</div>').join('') : '<div class="note">No checks recorded</div>') +
-        '</div><div style="margin-top:10px"><button class="btn btn-g" style="width:100%" data-act="markChecked">✔ Inventory Checked</button></div>' : '') +
-        '</div>';
-    }
-    if (s.category === 'sealed') {
-      h += '<div class="card" style="padding:12px;margin-bottom:12px"><h3 class="acc" style="margin-bottom:8px">📋 Licence Details</h3>' +
-        '<div class="kv" style="display:grid;gap:8px">' +
-        '<div class="kv"><div class="k">Licence No.</div><div class="v mono">' + esc(s.licenceNumber || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Source Number</div><div class="v mono">' + esc(s.sourceNumber || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Description of Substance</div><div class="v">' + esc(s.sourceName || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Radionuclide</div><div class="v mono">' + esc(s.isotope || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Activity</div><div class="v mono">' + esc(s.activityReference || s.activity || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Reference Date</div><div class="v">' + (s.referenceDate ? fmtDate(s.referenceDate) : '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Quantity</div><div class="v mono">' + (s.quantity || 1) + '</div></div>' +
-        '<div class="kv"><div class="k">Manufacturer</div><div class="v">' + esc(s.manufacturer || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Location</div><div class="v">' + esc(s.location || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Department</div><div class="v">' + esc(deptOf(s) || '—') + '</div></div>' +
-        '<div class="kv"><div class="k">Contact Person</div><div class="v">' + esc(s.custodian || '—') + '</div></div>' +
-        '</div></div>';
       const due = s.nextLeakTest && daysUntil(s.nextLeakTest) <= 0;
-      h += '<div class="card" style="padding:12px;border-color:' + (due ? 'rgba(239,68,68,.4)' : 'var(--brd)') + '"><h3 class="acc" style="margin-bottom:8px">🧫 Annual Leak Test</h3>' +
-        '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">' +
-        '<div class="kv"><div class="k">Last Leak Test</div><div class="v">' + fmtDate(s.lastLeakTest) + '</div></div>' +
-        '<div class="kv"><div class="k">Next Due</div><div class="v">' + fmtDate(s.nextLeakTest) + (due ? ' <span class="bdg b-alert" style="padding:1px 6px">OVERDUE</span>' : '') + '</div></div>' +
+      h += '<h3 style="font-size:13px;font-weight:800;margin-bottom:2px">' + esc(s.sourceName) + ' <span class="bdg" style="background:' + stColor + '22;color:' + stColor + ';font-size:10px;vertical-align:middle;margin-left:4px">' + esc(stLabel) + '</span></h3>';
+      h += '<div class="note" style="margin-bottom:8px">' + esc(s.location || '') + ' · ' + esc(deptOf(s)) + '</div>';
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+        '<button class="btn btn-o btn-s" data-act="sealedEdit">📝 Edit</button>' +
+        '<button class="btn btn-o btn-s" data-act="licenceChange">✏ Licence</button>' +
+        '<button class="btn btn-g btn-s" data-act="markChecked">✔ Checked</button>' +
+        '<button class="btn btn-p btn-s" data-act="leakTest">🧫 Leak Test</button>' +
+        '</div>';
+      h += '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding:6px 8px;background:var(--bg2);border-radius:6px">' +
+        '<div class="kv"><div class="k">Activity</div><div class="v mono" style="font-size:12px">' + esc(s.activityReference || s.activity || '—') + '</div></div>' +
+        '<div class="kv"><div class="k">Ref Date</div><div class="v" style="font-size:12px">' + fmtDate(s.referenceDate) + '</div></div>' +
+        '<div class="kv"><div class="k">Source No.</div><div class="v mono" style="font-size:12px">' + esc(s.sourceNumber || '—') + '</div></div>' +
+        '<div class="kv"><div class="k">Licence</div><div class="v mono" style="font-size:12px">' + esc(s.licenceNumber || '—') + '</div></div>' +
+        '</div>';
+      const chev = S.checkHistoryOpen ? '▾' : '▸';
+      h += '<div class="card" style="margin-bottom:8px;padding:8px 10px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-toggle="checkHistory">' +
+        '<h3 style="margin:0;font-size:12px"><span class="acc">🕓</span> Check History <span class="note">(' + (s.checkHistory || []).length + ')</span></h3>' +
+        '<span class="note" style="font-weight:600;font-size:11px">' + chev + (S.checkHistoryOpen ? ' hide' : ' show') + '</span></div>' +
+        (S.checkHistoryOpen ? '<div class="hist" style="margin-top:6px">' +
+        (s.checkHistory && s.checkHistory.length ? s.checkHistory.map(c => '<div class="hi" style="padding:3px 0">' + esc(c) + '</div>').join('') : '<div class="note">No checks recorded</div>') +
+        '</div>' : '') +
+        '</div>';
+      h += '<div class="card" style="padding:8px 10px;border-color:' + (due ? 'rgba(239,68,68,.4)' : 'var(--brd)') + '">' +
+        '<h3 style="margin:0 0 6px;font-size:12px">🧫 Annual Leak Test</h3>' +
+        '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">' +
+        '<div class="kv"><div class="k">Last</div><div class="v" style="font-size:12px">' + fmtDate(s.lastLeakTest) + '</div></div>' +
+        '<div class="kv"><div class="k">Next Due</div><div class="v" style="font-size:12px">' + fmtDate(s.nextLeakTest) + (due ? ' <span class="bdg b-alert" style="padding:1px 4px;font-size:9px">OVERDUE</span>' : '') + '</div></div>' +
         '</div>' +
         ((s.leakTestResult || s.leakTestCounts != null) ? leakResultKv(s) : '') +
-        '<div class="hist" style="margin-top:10px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
-        '<button class="btn btn-p" style="width:100%;margin-top:10px" data-act="leakTest"> Conduct Leak Test</button></div>'
+        '<div class="hist" style="margin-top:4px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi" style="padding:3px 0">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
+        '</div>';
     } else {
       const rua = S.ruas.find(u => u.spaceID === (s.spaceID || s.location));
       const swDue = rua && rua.nextSwipeTest && daysUntil(rua.nextSwipeTest) <= 0;
