@@ -2148,12 +2148,14 @@ function openSourceForm(category, editId) {
       '<div class="fi f"><label>X-ray Tube Serial Number(s)</label><input id="fSerials" placeholder="SN-00001, SN-00002"><div class="hint">Comma-separated if multiple tubes — may be unknown until installation</div></div>' +
       '<div class="fi f"><label>Licence Document (PDF)</label><input id="fFile" type="file" accept=".pdf"><div class="hint">Optional — can be uploaded later. Stored in SharePoint folder "IRP Documents/Licences" once sync is configured</div></div>';
   } else {
+    const spaceId = category === 'sealed' ? 'fSpace_sealed' : 'fSpace';
+    const custodianId = category === 'sealed' ? 'fCustodian_sealed' : 'fCustodian';
     fields =
       (category === 'sealed' ?
         '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' +
         '<div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
-        '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="' + (category === 'sealed' ? 'fSpace_sealed' : 'fSpace') + '">' + spaceOpts + '</select></div>' +
-        '<div class="fi"><label>Custodian</label><input id="' + (category === 'sealed' ? 'fCustodian_sealed' : 'fCustodian') + '" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' +
+        '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="' + spaceId + '">' + spaceOpts + '</select></div>' +
+        '<div class="fi"><label>Custodian</label><input id="' + custodianId + '" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' +
         '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
         '<div class="fg"><div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div>' +
         '<div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
