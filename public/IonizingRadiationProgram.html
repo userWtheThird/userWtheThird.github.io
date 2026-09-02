@@ -258,7 +258,6 @@ tbody tr.hl{background:var(--amb-l)}
 .b-expiring{background:var(--amb-l);color:var(--amb)} .b-expiring .d{background:var(--amb)}
 .b-valid{background:var(--blu-l);color:var(--blu)} .b-valid .d{background:var(--blu)}
 .b-mute{background:var(--brd);color:var(--txt3)} .b-mute .d{background:var(--txt3)}
-.b-normal{background:var(--grn-l);color:var(--grn)} .b-caution{background:var(--amb-l);color:var(--amb)} .b-critical{background:var(--red-l);color:var(--red)}
 .b-overdue{background:var(--red-l);color:var(--red)} .b-ok{background:var(--grn-l);color:var(--grn)}
 .b-communal{background:var(--cyn-l);color:var(--cyn)} .b-individual{background:var(--pur-l);color:var(--pur)}
 .b-alpha{background:var(--pur-l);color:var(--pur)} .b-beta{background:var(--amb-l);color:var(--amb)} .b-gamma{background:var(--blu-l);color:var(--blu)}
@@ -267,8 +266,6 @@ tbody tr.hl{background:var(--amb-l)}
 .card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:18px;margin-bottom:14px}
 .card h3{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .card h3 .acc{color:var(--amb)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .kv{font-size:12px}
 .kv .k{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);margin-bottom:3px;font-weight:700}
 .kv .v{color:var(--txt)}
@@ -286,8 +283,6 @@ tbody tr.hl{background:var(--amb-l)}
 .fi input[type=file]{padding:6px}
 
 /* Layout helpers */
-.layout2{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
-@media(max-width:1000px){.layout2{grid-template-columns:1fr}}
 /* Split layout: table left, sticky detail panel right */
 .split-layout{display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start}
 .split-layout .split-main{min-height:0}
@@ -314,10 +309,6 @@ tbody tr.hl{background:var(--amb-l)}
 
 /* Footer */
 .ftr{padding:16px 24px;text-align:center;font-size:11px;color:var(--txt3);border-top:1px solid var(--brd);margin-top:20px}
-
-/* Dose bars */
-.dosebar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:5px}
-.dosebar .fill{height:100%;border-radius:3px}
 
 /* RUA cards */
 .ruagrid{display:flex;flex-direction:column;gap:10px}
@@ -355,6 +346,7 @@ input[type=range]{width:100%;accent-color:var(--amb)}
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
+    <select id="userSel" title="Signed-in user — the Admin role unlocks reversal actions" style="background:var(--bg);border:1px solid var(--brd);border-radius:6px;color:var(--txt);padding:4px 8px;font-size:11px;max-width:200px"></select>
     <button class="icobtn" id="themeToggle" title="Toggle light/dark theme" style="font-size:12px;padding:4px 8px">☀️</button>
     <div class="sync-pill local" id="syncPill"><span class="dot"></span><span id="syncLabel">Local mode — data saved in this browser</span></div>
   </div>
@@ -378,7 +370,7 @@ input[type=range]{width:100%;accent-color:var(--amb)}
 // ════════════════════════════════════════════════════════════════
 //  CONSTANTS & SEED DATA
 // ════════════════════════════════════════════════════════════════
-const LS_KEYS = { sources:'IRP_SOURCES_V1', doses:'IRP_DOSES_V1', ruas:'IRP_RUAS_V1', locations:'IRP_LOCATIONS_V1', persons:'IRP_PERSONS_V1', waste:'IRP_WASTE_V1', doseRoster:'IRP_DOSE_ROSTER_V1', docs:'IRP_DOCS_V1' };
+const LS_KEYS = { sources:'IRP_SOURCES_V1', doses:'IRP_DOSES_V1', ruas:'IRP_RUAS_V1', waste:'IRP_WASTE_V1', doseRoster:'IRP_DOSE_ROSTER_V1', docs:'IRP_DOCS_V1' };
 const CHECK_INTERVAL_DAYS = 365;
 const LEAK_INTERVAL_DAYS = 365; // sealed-source leak tests are annual
 const SWIPE_INTERVAL_DAYS = 30;
@@ -530,7 +522,8 @@ const SEED_PERSONS = [
   { id:'p10', name:'Brian Tan', title:'PhD Student', role:'Student', department:'Chemistry' },
   { id:'p11', name:'Chloe Ng', title:'MPhil Student', role:'Student', department:'Biology' },
   { id:'p12', name:'Ethan Lee', title:'PhD Student', role:'Student', department:'Materials' },
-  { id:'p13', name:'Marcus Chen', title:'Radiation Safety Officer', role:'Officer', department:'HSEO' }
+  { id:'p13', name:'Marcus Chen', title:'Radiation Safety Officer', role:'Officer', department:'HSEO' },
+  { id:'p14', name:'WM', title:'Superadmin', role:'Admin', department:'HSEO' }
 ];
 
 const SEED_SOURCES = [
@@ -548,9 +541,9 @@ const SEED_SOURCES = [
   { id:'rad13', category:'unsealed', sourceName:'F-18 FDG Production Aliquot', isotope:'F-18', activity:'2.0 GBq', location:'MEDG05', spaceID:'MEDG05', lastLeakTest:'', nextLeakTest:'', status:'safe', custodian:'Dr. Lucia Ferrer', department:'Nuclear Medicine', acquiredDate:'2026-08-11', purchasedBy:'Dr. Lucia Ferrer', vendorName:'HK PET Imaging Centre', volume:'0.8 mL', usageLog:[] },
   { id:'rad14', category:'unsealed', sourceName:'Ga-68 Chloride Eluate', isotope:'Ga-68', activity:'1.5 GBq', location:'MEDG05', spaceID:'MEDG05', lastLeakTest:'', nextLeakTest:'', status:'safe', custodian:'Dr. Lucia Ferrer', department:'Nuclear Medicine', acquiredDate:'2026-08-13', purchasedBy:'Dr. Lucia Ferrer', vendorName:'HK PET Imaging Centre', volume:'0.5 mL', usageLog:[] },
   { id:'rad15', category:'unsealed', sourceName:'C-11 Choline Production Aliquot', isotope:'C-11', activity:'1.2 GBq', location:'MEDG05', spaceID:'MEDG05', lastLeakTest:'', nextLeakTest:'', status:'safe', custodian:'Dr. Lucia Ferrer', department:'Nuclear Medicine', acquiredDate:'2026-08-14', purchasedBy:'Dr. Lucia Ferrer', vendorName:'HK PET Imaging Centre', volume:'0.6 mL', usageLog:[] },
-  { id:'rad9', category:'apparatus', equipmentDescription:'X-ray Diffractometer — Bruker D8 Advance', serialNumber:'102-11-04567', location:'MTR012', spaceID:'MTR012', custodian:'Dr. Karl Berg', licenceNumber:'XA-2025-0338', licenceFile:'xa_licence_D8.pdf', licenceExpiryDate:'2026-09-30', department:'Materials', lastXraySurveyDate:'2026-05-11', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs1', surveyDate:'2026-05-11', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2026-04-01', kV:'40', mA:'30', operationType:'Diffractometry', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh6', licenceNumber:'XA-2025-0338', changedDate:'2025-10-01', changedBy:'Marcus Chen', fileName:'xa_licence_D8.pdf', notes:'Licence renewal after tube replacement' }, { id:'lh7', licenceNumber:'XA-2023-0291', changedDate:'2023-09-15', changedBy:'Marcus Chen', fileName:'xa_licence_D8_old.pdf', notes:'Initial apparatus licence' } ], xrayTubeSerialNumbers:'SN-88231A, SN-88231B' },
-  { id:'rad10', category:'apparatus', equipmentDescription:'Industrial Radiography Camera — Model G-4', serialNumber:'G4-2019-0887', location:'MEDG05', spaceID:'MEDG05', custodian:'Dr. Lucia Ferrer', licenceNumber:'XA-2026-0412', licenceFile:'xa_licence_G4.pdf', licenceExpiryDate:'2027-03-31', department:'Nuclear Medicine', lastXraySurveyDate:'2026-02-19', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs2', surveyDate:'2026-02-19', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2025-12-15', kV:'320', mA:'5', operationType:'Radiography', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh8', licenceNumber:'XA-2026-0412', changedDate:'2026-04-01', changedBy:'Marcus Chen', fileName:'xa_licence_G4.pdf', notes:'Annual renewal' } ], xrayTubeSerialNumbers:'SN-G4-1102' },
-  { id:'rad11', category:'apparatus', equipmentDescription:'Portable XRF Analyzer', serialNumber:'XRF-552-0139', location:'ENV309', spaceID:'ENV309', custodian:'Dr. Elena Rostova', licenceNumber:'XA-2024-0267', licenceFile:'xa_licence_XRF.pdf', licenceExpiryDate:'2026-06-14', department:'Civil Engineering', lastXraySurveyDate:'2025-07-22', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs3', surveyDate:'2025-07-22', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2025-06-10', kV:'50', mA:'0.2', operationType:'XRF', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh9', licenceNumber:'XA-2024-0267', changedDate:'2024-06-20', changedBy:'Marcus Chen', fileName:'xa_licence_XRF.pdf', notes:'' } ], xrayTubeSerialNumbers:'SN-XRF-7745' }
+  { id:'rad9', category:'apparatus', equipmentDescription:'X-ray Diffractometer — Bruker D8 Advance', brand:'Bruker', equipmentModel:'D8 Advance', serialNumber:'102-11-04567', location:'MTR012', spaceID:'MTR012', custodian:'Dr. Karl Berg', licenceNumber:'XA-2025-0338', licenceFile:'xa_licence_D8.pdf', licenceExpiryDate:'2026-09-30', department:'Materials', lastXraySurveyDate:'2026-05-11', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs1', surveyDate:'2026-05-11', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2026-04-01', kV:'40', mA:'30', operationType:'Diffractometry', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh6', licenceNumber:'XA-2025-0338', changedDate:'2025-10-01', changedBy:'Marcus Chen', fileName:'xa_licence_D8.pdf', notes:'Licence renewal after tube replacement' }, { id:'lh7', licenceNumber:'XA-2023-0291', changedDate:'2023-09-15', changedBy:'Marcus Chen', fileName:'xa_licence_D8_old.pdf', notes:'Initial apparatus licence' } ], xrayTubeSerialNumbers:'SN-88231A, SN-88231B' },
+  { id:'rad10', category:'apparatus', equipmentDescription:'Industrial Radiography Camera — Model G-4', brand:'Sentech', equipmentModel:'G-4', serialNumber:'G4-2019-0887', location:'MEDG05', spaceID:'MEDG05', custodian:'Dr. Lucia Ferrer', licenceNumber:'XA-2026-0412', licenceFile:'xa_licence_G4.pdf', licenceExpiryDate:'2027-03-31', department:'Nuclear Medicine', lastXraySurveyDate:'2026-02-19', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs2', surveyDate:'2026-02-19', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2025-12-15', kV:'320', mA:'5', operationType:'Radiography', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh8', licenceNumber:'XA-2026-0412', changedDate:'2026-04-01', changedBy:'Marcus Chen', fileName:'xa_licence_G4.pdf', notes:'Annual renewal' } ], xrayTubeSerialNumbers:'SN-G4-1102' },
+  { id:'rad11', category:'apparatus', equipmentDescription:'Portable XRF Analyzer', brand:'Olympus', equipmentModel:'Vanta M-Series', serialNumber:'XRF-552-0139', location:'ENV309', spaceID:'ENV309', custodian:'Dr. Elena Rostova', licenceNumber:'XA-2024-0267', licenceFile:'xa_licence_XRF.pdf', licenceExpiryDate:'2026-06-14', department:'Civil Engineering', lastXraySurveyDate:'2025-07-22', surveyInstrumentSerial:'RG-4451', xraySurveys:[{ id:'xs3', surveyDate:'2025-07-22', conductedBy:'Marcus Chen', instrument:'RADIAGEM 2000', instrumentSerial:'RG-4451', calibrationDate:'2025-06-10', kV:'50', mA:'0.2', operationType:'XRF', conclusion:'Pass', observations:'' }], licenceHistory:[ { id:'lh9', licenceNumber:'XA-2024-0267', changedDate:'2024-06-20', changedBy:'Marcus Chen', fileName:'xa_licence_XRF.pdf', notes:'' } ], xrayTubeSerialNumbers:'SN-XRF-7745' }
 ];
 
 const SEED_DOSES = [
@@ -584,7 +577,7 @@ const SEED_DOCS = [
 ];
 
 const SEED_RUAS = [
-  { id:'rua1', ruaNo:'RUA-2025-001', spaceID:'LSK105', type:'Communal', department:'Physics', status:'active', expiryDate:'2027-03-31', addedDate:'2025-04-10', renewedDate:'2026-04-10', changeHistory:[ { id:'rh1', date:'2026-04-10', changes:['Renewed for 1 year — valid until 2027-03-31'] }, { id:'rh2', date:'2025-06-18', changes:['Dr. Karl Berg: added isotope Co-60 (limit 100000 µCi)', 'Dr. Karl Berg: added user Ethan Lee (Student)'] }, { id:'rh3', date:'2025-04-10', changes:['Authorization created'] } ], lastSwipeTest:'2026-07-16', nextSwipeTest:'2026-08-14', swipeHistory:['2026-07-16 — Swipe survey conducted by Marcus Chen — below background', '2026-06-16 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Disposable gloves','Survey meter','Swipe test','Decontaminant'], groups:[
+  { id:'rua1', ruaNo:'RUA-2025-001', spaceID:'LSK105', type:'Communal', department:'Physics', personInCharge:'Dr. Elena Rostova', contactPerson:'Marcus Chen', status:'active', expiryDate:'2027-03-31', addedDate:'2025-04-10', renewedDate:'2026-04-10', changeHistory:[ { id:'rh1', date:'2026-04-10', changes:['Renewed for 1 year — valid until 2027-03-31'] }, { id:'rh2', date:'2025-06-18', changes:['Dr. Karl Berg: added isotope Co-60 (limit 100000 µCi)', 'Dr. Karl Berg: added user Ethan Lee (Student)'] }, { id:'rh3', date:'2025-04-10', changes:['Authorization created'] } ], lastSwipeTest:'2026-07-16', nextSwipeTest:'2026-08-14', swipeHistory:['2026-07-16 — Swipe survey conducted by Marcus Chen — below background', '2026-06-16 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Disposable gloves','Survey meter','Swipe test','Decontaminant'], groups:[
     { id:'g1', piId:'p1', piName:'Dr. Elena Rostova', isotopes:[
       { iso:'H-3', description:'Tritiated thymidine cell-proliferation assays', limit:50, chemicalForm:'Tritiated water / labeled nucleoside', physicalForm:'Liquid', expUCi:12, possUCi:30 },
       { iso:'C-14', description:'C-14 glucose metabolic tracing', limit:25, chemicalForm:'Labeled glucose in aqueous buffer', physicalForm:'Liquid', expUCi:5, possUCi:12 }
@@ -593,14 +586,14 @@ const SEED_RUAS = [
       { iso:'Co-60', description:'Gamma irradiation of polymer samples (sealed irradiator)', limit:100000, chemicalForm:'Sealed metal source', physicalForm:'Solid', expUCi:0, possUCi:100000 }
     ], users:[ { id:'p12', name:'Ethan Lee', role:'Student' } ] }
   ]},
-  { id:'rua3', ruaNo:'RUA-2026-001', spaceID:'MEDG05', type:'Communal', department:'Nuclear Medicine', status:'active', expiryDate:'2027-07-01', addedDate:'2026-07-01', renewedDate:'', changeHistory:[ { id:'rh6', date:'2026-07-01', changes:['Authorization created'] } ], lastSwipeTest:'2026-08-10', nextSwipeTest:'2026-09-09', swipeHistory:['2026-08-10 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Lead shield','Disposable gloves','Survey meter','Swipe test','Decontaminant','Eye protection'], groups:[
+  { id:'rua3', ruaNo:'RUA-2026-001', spaceID:'MEDG05', type:'Communal', department:'Nuclear Medicine', personInCharge:'Dr. Lucia Ferrer', contactPerson:'Marcus Chen', status:'active', expiryDate:'2027-07-01', addedDate:'2026-07-01', renewedDate:'', changeHistory:[ { id:'rh6', date:'2026-07-01', changes:['Authorization created'] } ], lastSwipeTest:'2026-08-10', nextSwipeTest:'2026-09-09', swipeHistory:['2026-08-10 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Lead shield','Disposable gloves','Survey meter','Swipe test','Decontaminant','Eye protection'], groups:[
     { id:'g5', piId:'p5', piName:'Dr. Lucia Ferrer', isotopes:[
       { iso:'F-18', description:'FDG radiopharmaceutical production and QC', limit:100000, chemicalForm:'FDG in sterile saline', physicalForm:'Liquid', expUCi:54000, possUCi:100000 },
       { iso:'Ga-68', description:'Ga-68 chloride eluate for PET tracer labeling', limit:60000, chemicalForm:'Gallium chloride in HCl', physicalForm:'Liquid', expUCi:40000, possUCi:60000 },
       { iso:'C-11', description:'C-11 choline synthesis for PET imaging', limit:60000, chemicalForm:'C-11 choline in sterile solution', physicalForm:'Liquid', expUCi:32000, possUCi:60000 }
     ], users:[ { id:'p5', name:'Dr. Lucia Ferrer', role:'PI' } ] }
   ]},
-  { id:'rua2', ruaNo:'RUA-2025-002', spaceID:'UST302', type:'Individual', department:'Chemistry', personInCharge:'Dr. Wei Zhang', status:'active', expiryDate:'2026-09-05', addedDate:'2025-09-05', renewedDate:'2025-09-05', changeHistory:[ { id:'rh4', date:'2025-09-05', changes:['Renewed for 1 year — valid until 2026-09-05', 'Authorization created'] } ], lastSwipeTest:'2026-08-01', nextSwipeTest:'2026-08-31', swipeHistory:['2026-08-01 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Beta shield','Disposable gloves','Survey meter','Eye protection','Shield waste container','Decontaminant'], groups:[
+  { id:'rua2', ruaNo:'RUA-2025-002', spaceID:'UST302', type:'Individual', department:'Chemistry', personInCharge:'Dr. Wei Zhang', contactPerson:'Sarah Lim', status:'active', expiryDate:'2026-09-05', addedDate:'2025-09-05', renewedDate:'2025-09-05', changeHistory:[ { id:'rh4', date:'2025-09-05', changes:['Renewed for 1 year — valid until 2026-09-05', 'Authorization created'] } ], lastSwipeTest:'2026-08-01', nextSwipeTest:'2026-08-31', swipeHistory:['2026-08-01 — Swipe survey conducted by Marcus Chen — below background'], safetyControls:['Absorbent paper','Lab coat','Beta shield','Disposable gloves','Survey meter','Eye protection','Shield waste container','Decontaminant'], groups:[
     { id:'g3', piId:'p2', piName:'Dr. Wei Zhang', isotopes:[
       { iso:'P-32', description:'ATP end-labeling of nucleic acids', limit:10, chemicalForm:'Sodium phosphate buffer', physicalForm:'Liquid', expUCi:3.7, possUCi:7.4 },
       { iso:'S-35', description:'Methionine pulse-labeling of proteins', limit:20, chemicalForm:'L-methionine in aqueous solution', physicalForm:'Liquid', expUCi:5, possUCi:10 }
@@ -634,19 +627,16 @@ const SEED_WASTE = [
 let uidCounter = 0;
 function uid(prefix) { return (prefix || 'id') + '-' + Date.now().toString(36) + '-' + (++uidCounter) + '-' + Math.random().toString(36).slice(2, 7); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
-function currentPeriod() { const q = Math.floor(new Date().getMonth() / 3) + 1; return 'Q' + q + ' ' + new Date().getFullYear(); }
 function currentMonth() { return todayISO().slice(0, 7); }
 function daysUntil(dateStr) { if (!dateStr) return 0; const d = new Date(dateStr); const t = new Date(todayISO()); return Math.round((d - t) / 86400000); }
 function fmtDate(d) { if (!d) return '—'; return d; }
-function fmtDateLong(d) {
-  if (!d) return '—';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const parts = d.split('-').map(Number);
-  const day = parts[2];
-  const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
-  return day + '<sup>' + suffix + '</sup> ' + months[parts[1] - 1] + ', ' + parts[0];
-}
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// Signed-in user & admin gate — reversing a disposal or a decommission requires the Admin role
+function currentUser() { return S.persons.find(p => p.id === S.currentUserId) || S.persons[0] || null; }
+function isAdmin() { const u = currentUser(); return !!u && u.role === 'Admin'; }
+// Reversals accumulate so a later decommission / disposal cannot erase the audit reason
+function lastUndo(log) { return log && log.length ? log[log.length - 1] : null; }
 
 function computeLicenceState(source) {
   const exp = source.licenceExpiryDate;
@@ -839,56 +829,6 @@ function statusBadge(s) {
   return '<span class="bdg b-due"><span class="d"></span>Due Test</span>';
 }
 
-// Leak test status for sealed sources
-function leakTestBadge(s) {
-  if (!s.nextLeakTest) return '<span class="note">—</span>';
-  const days = daysUntil(s.nextLeakTest);
-  if (days <= 0) return '<span class="bdg b-alert"><span class="d"></span>Leak Test Overdue</span>';
-  if (days <= 30) return '<span class="bdg b-due"><span class="d"></span>Test Due (' + days + 'd)</span>';
-  return '<span class="bdg b-safe"><span class="d"></span>Leak Tested Safe</span>';
-}
-
-// Parse activity string (e.g., '3.7 GBq', '37 MBq') to MBq
-function parseActivityToMBq(str) {
-  if (!str) return 0;
-  const m = String(str).match(/([\d.]+)\s*(TBq|GBq|MBq|kBq|Bq)/i);
-  if (!m) return 0;
-  const v = parseFloat(m[1]), u = m[2].toUpperCase();
-  if (u === 'TBQ') return v * 1e6;
-  if (u === 'GBQ') return v * 1000;
-  if (u === 'MBQ') return v;
-  if (u === 'KBQ') return v / 1000;
-  if (u === 'BQ') return v / 1e6;
-  return 0;
-}
-
-// Calculate current activity for sealed source (decay-corrected from reference date)
-function sealedCurrentActivityMBq(s) {
-  const refMBq = parseActivityToMBq(s.activityReference);
-  if (!refMBq || !s.referenceDate) return refMBq;
-  const t12 = HALF_LIFE_DAYS[s.isotope];
-  if (!t12) return refMBq;
-  const days = (Date.parse(todayISO()) - Date.parse(s.referenceDate)) / 86400000;
-  if (!isFinite(days) || days <= 0) return refMBq;
-  return refMBq * Math.pow(0.5, days / t12);
-}
-
-function formatActivityMBq(mbq) {
-  if (!mbq || mbq <= 0) return '—';
-  if (mbq >= 1e6) return (mbq / 1e6).toFixed(2) + ' TBq';
-  if (mbq >= 1000) return (mbq / 1000).toFixed(2) + ' GBq';
-  if (mbq >= 1) return mbq.toFixed(2) + ' MBq';
-  return (mbq * 1000).toFixed(2) + ' kBq';
-}
-
-function sealedCurrentActivityCell(s) {
-  const cur = sealedCurrentActivityMBq(s);
-  const ref = parseActivityToMBq(s.activityReference);
-  if (!ref || !s.referenceDate) return '<span class="note">—</span>';
-  const pct = ref > 0 ? Math.round((1 - cur / ref) * 100) : 0;
-  return formatActivityMBq(cur) + '<br><span class="note">' + (pct >= 1 ? '−' + pct + '% from ref.' : '') + '</span>';
-}
-
 function downloadCSV(filename, rows) {
   const csv = rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -929,12 +869,19 @@ const S = {
   rptYear: new Date().getFullYear(), rptQ: Math.floor(new Date().getMonth() / 3) + 1,
     wasteSearch: '', wasteClassFilter: '', wasteMonth: currentMonth(), wasteView: 'collected', wasteYear: new Date().getFullYear(), wasteDateFrom: '', wasteDateTo: '', isoSearch: '',
     docLicOpen: true, docCorrOpen: true, docRepOpen: true, docLicFilter: 'all',
-  selSources: new Set(), detailId: null,
+  selSources: new Set(), detailId: null, currentUserId: null,
   invSortCol: '', invSortDir: 'asc',
   wasteSortCol: 'collectedDate', wasteSortDir: 'desc',
   wasteDisposedMonth: '',
   ruaShowInactive: false,
   checkHistoryOpen: true,
+  licenceHistoryOpen: true,
+  licenceDetailId: null,
+  licenceSearch: '',
+  licenceCatFilter: 'all',
+  personnelSearch: '',
+  personnelDept: '',
+  personnelExpanded: null,
   dosForm: { name:'', dept:DOSIMETRY_DEPARTMENTS[0], month:currentMonth(), dose:'', remarks:'' }
 };
 
@@ -959,16 +906,16 @@ function srcToSP(s) {
     Title: s.sourceName || s.equipmentDescription || 'Source',
     Isotope: s.isotope || '', Activity: s.activity || '',
     Location: s.location || '', SpaceID: s.spaceID || '',
-    Status: s.status || '', Custodian: s.custodian || '', Department: s.department || '',
+    Status: s.status || '', SourceStatus: s.sourceStatus || '', DisposalDate: s.disposalDate || '', Custodian: s.custodian || '', Department: s.department || '',
     LastLeakTest: s.lastLeakTest || '', NextLeakTest: s.nextLeakTest || '',
     LeakTestCounts: s.leakTestCounts ?? null, LeakTestBackground: s.leakTestBackground ?? null,
     LeakTestResult: s.leakTestResult || '', LeakTestNotes: s.leakTestNotes || '',
-    LastInventoryCheckDate: s.lastInventoryCheckDate || '', LastXraySurveyDate: s.lastXraySurveyDate || '', SurveyInstrumentSerial: s.surveyInstrumentSerial || '', SerialNumber: s.serialNumber || '',
+    LastInventoryCheckDate: s.lastInventoryCheckDate || '', LastXraySurveyDate: s.lastXraySurveyDate || '', SurveyInstrumentSerial: s.surveyInstrumentSerial || '', SerialNumber: s.serialNumber || '', Brand: s.brand || '', EquipmentModel: s.equipmentModel || '',
     ActivityReference: s.activityReference || '', ReferenceDate: s.referenceDate || '',
     LicenceNumber: s.licenceNumber || '', LicenceFile: s.licenceFile || '',
     LicenceExpiryDate: s.licenceExpiryDate || '', XrayTubeSerialNumbers: s.xrayTubeSerialNumbers || '',
     Stage: s.stage || '', PurchaseLicenceNo: s.purchaseLicenceNo || '', ImportLicenceNo: s.importLicenceNo || '',
-    FloorPlanFile: s.floorPlanFile || '', PossessLicenceJson: JSON.stringify(s.possessLicence || null), DecommissionJson: JSON.stringify(s.decommission || null),
+    PossessLicenceJson: JSON.stringify(s.possessLicence || null), DecommissionJson: JSON.stringify(s.decommission || null),
     AddedDate: s.addedDate || '',
     AcquiredDate: s.acquiredDate || '', PurchasedBy: s.purchasedBy || '', VendorName: s.vendorName || '', Volume: s.volume || '',
     UsageLogJson: JSON.stringify(s.usageLog || []),
@@ -982,16 +929,16 @@ function srcFromSP(r) {
     equipmentDescription: r.Category === 'apparatus' ? r.Title : undefined,
     isotope: r.Isotope || undefined, activity: r.Activity || undefined,
     location: r.Location || undefined, spaceID: r.SpaceID || undefined,
-    status: r.Status || undefined, custodian: r.Custodian || undefined, department: r.Department || undefined,
+    status: r.Status || undefined, sourceStatus: r.SourceStatus || undefined, disposalDate: r.DisposalDate || undefined, custodian: r.Custodian || undefined, department: r.Department || undefined,
     lastLeakTest: r.LastLeakTest || undefined, nextLeakTest: r.NextLeakTest || undefined,
     leakTestCounts: r.LeakTestCounts ?? undefined, leakTestBackground: r.LeakTestBackground ?? undefined,
     leakTestResult: r.LeakTestResult || undefined, leakTestNotes: r.LeakTestNotes || undefined,
-    lastInventoryCheckDate: r.LastInventoryCheckDate || undefined, lastXraySurveyDate: r.LastXraySurveyDate || undefined, surveyInstrumentSerial: r.SurveyInstrumentSerial || undefined, serialNumber: r.SerialNumber || undefined,
+    lastInventoryCheckDate: r.LastInventoryCheckDate || undefined, lastXraySurveyDate: r.LastXraySurveyDate || undefined, surveyInstrumentSerial: r.SurveyInstrumentSerial || undefined, serialNumber: r.SerialNumber || undefined, brand: r.Brand || undefined, equipmentModel: r.EquipmentModel || undefined,
     activityReference: r.ActivityReference || undefined, referenceDate: r.ReferenceDate || undefined,
     licenceNumber: r.LicenceNumber || undefined, licenceFile: r.LicenceFile || undefined,
     licenceExpiryDate: r.LicenceExpiryDate || undefined, xrayTubeSerialNumbers: r.XrayTubeSerialNumbers || undefined,
     stage: r.Stage || undefined, purchaseLicenceNo: r.PurchaseLicenceNo || undefined, importLicenceNo: r.ImportLicenceNo || undefined,
-    floorPlanFile: r.FloorPlanFile || undefined, possessLicence: JSON.parse(r.PossessLicenceJson || 'null') || undefined, decommission: JSON.parse(r.DecommissionJson || 'null') || undefined,
+    possessLicence: JSON.parse(r.PossessLicenceJson || 'null') || undefined, decommission: JSON.parse(r.DecommissionJson || 'null') || undefined,
     addedDate: r.AddedDate || undefined,
     acquiredDate: r.AcquiredDate || undefined, purchasedBy: r.PurchasedBy || undefined, vendorName: r.VendorName || undefined, volume: r.Volume || undefined,
     usageLog: JSON.parse(r.UsageLogJson || '[]'),
@@ -1019,16 +966,16 @@ function docFromSP(r) {
   return { id: r.ClientId, date: r.DocDate || undefined, direction: r.Direction || 'Sent', subject: r.Title, relatesTo: r.RelatesTo || undefined, fileName: r.FileName || undefined, notes: r.Notes || undefined, spId: r.Id };
 }
 function ruaToSP(u) {
-  return { Title: u.spaceID, RuaNo: u.ruaNo || '', RuaType: u.type, Department: u.department, PersonInCharge: u.personInCharge || '', ExpiryDate: u.expiryDate || '', AddedDate: u.addedDate || '', RenewedDate: u.renewedDate || '', LastSwipeTest: u.lastSwipeTest || '', NextSwipeTest: u.nextSwipeTest || '', SwipeHistoryJson: JSON.stringify(u.swipeHistory || []), SafetyControlsJson: JSON.stringify(u.safetyControls || []), GroupsJson: JSON.stringify(u.groups || []), ChangeHistoryJson: JSON.stringify(u.changeHistory || []), ClientId: u.id };
+  return { Title: u.spaceID, RuaNo: u.ruaNo || '', RuaType: u.type, Department: u.department, PersonInCharge: u.personInCharge || '', ContactPerson: u.contactPerson || '', ExpiryDate: u.expiryDate || '', AddedDate: u.addedDate || '', RenewedDate: u.renewedDate || '', LastSwipeTest: u.lastSwipeTest || '', NextSwipeTest: u.nextSwipeTest || '', SwipeHistoryJson: JSON.stringify(u.swipeHistory || []), SafetyControlsJson: JSON.stringify(u.safetyControls || []), GroupsJson: JSON.stringify(u.groups || []), ChangeHistoryJson: JSON.stringify(u.changeHistory || []), ClientId: u.id };
 }
 function ruaFromSP(r) {
-  return { id: r.ClientId, ruaNo: r.RuaNo || undefined, spaceID: r.Title, type: r.RuaType, department: r.Department, personInCharge: r.PersonInCharge || undefined, expiryDate: r.ExpiryDate || undefined, addedDate: r.AddedDate || undefined, renewedDate: r.RenewedDate || undefined, lastSwipeTest: r.LastSwipeTest || undefined, nextSwipeTest: r.NextSwipeTest || undefined, swipeHistory: JSON.parse(r.SwipeHistoryJson || '[]'), safetyControls: JSON.parse(r.SafetyControlsJson || '[]'), groups: JSON.parse(r.GroupsJson || '[]'), changeHistory: JSON.parse(r.ChangeHistoryJson || '[]'), spId: r.Id };
+  return { id: r.ClientId, ruaNo: r.RuaNo || undefined, spaceID: r.Title, type: r.RuaType, department: r.Department, personInCharge: r.PersonInCharge || undefined, contactPerson: r.ContactPerson || undefined, expiryDate: r.ExpiryDate || undefined, addedDate: r.AddedDate || undefined, renewedDate: r.RenewedDate || undefined, lastSwipeTest: r.LastSwipeTest || undefined, nextSwipeTest: r.NextSwipeTest || undefined, swipeHistory: JSON.parse(r.SwipeHistoryJson || '[]'), safetyControls: JSON.parse(r.SafetyControlsJson || '[]'), groups: JSON.parse(r.GroupsJson || '[]'), changeHistory: JSON.parse(r.ChangeHistoryJson || '[]'), spId: r.Id };
 }
 function wasteToSP(w) {
-  return { Title: w.tagNo, WasteClass: w.wasteClass, PhysicalForm: w.form, Isotope: w.isotope, ActivityUCi: w.activityUCi || 0, ActivityMBq: +((w.activityUCi || 0) * UCII_TO_MBQ).toFixed(4), Department: w.department || '', SpaceID: w.spaceID || '', CollectedDate: w.collectedDate || '', CollectedBy: w.collectedBy || '', Notes: w.notes || '', Status: w.status === 'disposed' ? 'Disposed' : 'Collected', DisposedDate: w.disposedDate || '', DisposedBy: w.disposedBy || '', DisposalMethod: w.disposalMethod || '', DisposalNotes: w.disposalNotes || '', ClientId: w.id };
+  return { Title: w.tagNo, WasteClass: w.wasteClass, PhysicalForm: w.form, Isotope: w.isotope, ActivityUCi: w.activityUCi || 0, ActivityMBq: +((w.activityUCi || 0) * UCII_TO_MBQ).toFixed(4), Department: w.department || '', SpaceID: w.spaceID || '', CollectedDate: w.collectedDate || '', CollectedBy: w.collectedBy || '', Notes: w.notes || '', Status: w.status === 'disposed' ? 'Disposed' : 'Collected', DisposedDate: w.disposedDate || '', DisposedBy: w.disposedBy || '', DisposalMethod: w.disposalMethod || '', DisposalNotes: w.disposalNotes || '', DisposalUndoJson: JSON.stringify(w.disposalUndoLog || null), ClientId: w.id };
 }
 function wasteFromSP(r) {
-  return { id: r.ClientId, tagNo: r.Title, wasteClass: r.WasteClass, form: r.PhysicalForm, isotope: r.Isotope, activityUCi: r.ActivityUCi, department: r.Department, spaceID: r.SpaceID, collectedDate: r.CollectedDate, collectedBy: r.CollectedBy || undefined, notes: r.Notes || undefined, status: r.Status === 'Disposed' ? 'disposed' : 'collected', disposedDate: r.DisposedDate || undefined, disposedBy: r.DisposedBy || undefined, disposalMethod: r.DisposalMethod || undefined, disposalNotes: r.DisposalNotes || undefined, spId: r.Id };
+  return { id: r.ClientId, tagNo: r.Title, wasteClass: r.WasteClass, form: r.PhysicalForm, isotope: r.Isotope, activityUCi: r.ActivityUCi, department: r.Department, spaceID: r.SpaceID, collectedDate: r.CollectedDate, collectedBy: r.CollectedBy || undefined, notes: r.Notes || undefined, status: r.Status === 'Disposed' ? 'disposed' : 'collected', disposedDate: r.DisposedDate || undefined, disposedBy: r.DisposedBy || undefined, disposalMethod: r.DisposalMethod || undefined, disposalNotes: r.DisposalNotes || undefined, disposalUndoLog: JSON.parse(r.DisposalUndoJson || 'null') || undefined, spId: r.Id };
 }
 
 async function loadFromSP() {
@@ -1045,7 +992,11 @@ async function loadFromSP() {
   if (roster && roster.length) S.doseRoster = roster.map(rosterFromSP);
   if (docs && docs.length) S.docs = docs.map(docFromSP);
   if (locs && locs.length) S.locations = locs.map(r => ({ id: r.ClientId || ('loc' + r.Id), building: r.Building, roomNumber: r.RoomNumber, spaceID: r.SpaceID, department: r.Department }));
-  if (pers && pers.length) S.persons = pers.map(r => ({ id: r.ClientId || ('p' + r.Id), name: r.Title, title: r.JobTitle || '', role: r.PersonRole, department: r.Department }));
+  if (pers && pers.length) {
+    S.persons = pers.map(r => ({ id: r.ClientId || ('p' + r.Id), name: r.Title, title: r.JobTitle || '', role: r.PersonRole, department: r.Department }));
+    // Never lock the reversal actions out: fall back to the seeded Admin if the list carries none
+    if (!S.persons.some(p => p.role === 'Admin')) S.persons = S.persons.concat(SEED_PERSONS.filter(p => p.role === 'Admin'));
+  }
 }
 
 // Generic persistence: write-through to SP when in SP mode, always mirror to localStorage
@@ -1096,10 +1047,6 @@ async function persistRua(u) {
     if (u.spId) await spUpdateListItem(SP_LISTS.ruas, u.spId, ruaToSP(u));
     else { const res = await spCreateListItem(SP_LISTS.ruas, ruaToSP(u)); if (res && res.d) u.spId = res.d.Id; }
   } catch (e) { console.error('SP persist failed', e); toast('⚠ SharePoint sync failed — saved locally'); }
-}
-async function deleteRuaSP(u) {
-  if (!isSPMode || !u.spId) return;
-  try { await spDeleteListItem(SP_LISTS.ruas, u.spId); } catch (e) { console.error('SP delete failed', e); }
 }
 async function persistWaste(w) {
   lsSave(LS_KEYS.waste, S.waste);
@@ -1152,7 +1099,9 @@ function renderTabs() {
   const defs = [
     { id:'overview', label:'🏠 Overview', cnt: 0 },
     { id:'inventory', label:'☢ Inventory', cnt: S.sources.length },
+    { id:'licences', label:'📜 Licences', cnt: S.sources.filter(s => s.licenceNumber).length },
     { id:'rua', label:'📋 RUA', cnt: S.ruas.length },
+    { id:'personnel', label:'👥 Personnel', cnt: S.persons.length },
     { id:'dosimeter', label:'👤 Personnel Dosimetry', cnt: S.doses.length },
     { id:'waste', label:'🛢 Waste Tracking', cnt: S.waste.length },
     { id:'documents', label:'📁 Documentations', cnt: S.docs.length },
@@ -1197,7 +1146,7 @@ function filteredSources() {
     if (S.invIso && s.isotope !== S.invIso) return false;
     if (S.invLicence && s.licenceNumber !== S.invLicence) return false;
     if (q) {
-      const hay = ((s.sourceName || '') + ' ' + (s.equipmentDescription || '') + ' ' + (s.serialNumber || '') + ' ' + (s.location || '') + ' ' + (s.custodian || '') + ' ' + (s.licenceNumber || '')).toLowerCase();
+      const hay = ((s.sourceName || '') + ' ' + (s.equipmentDescription || '') + ' ' + (s.brand || '') + ' ' + (s.equipmentModel || '') + ' ' + (s.serialNumber || '') + ' ' + (s.location || '') + ' ' + (s.custodian || '') + ' ' + (s.licenceNumber || '')).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -1284,7 +1233,7 @@ function renderInventory() {
           '<td class="mono">' + esc(s.activityReference || s.activity) + '</td>' +
           '<td class="mono">' + (s.referenceDate ? fmtDate(s.referenceDate) : '<span class="note">—</span>') + '</td>' +
           '<td class="mono">' + (s.quantity || 1) + '</td>' +
-          '<td><span class="bdg" style="background:' + stColor + '22;color:' + stColor + '">' + esc(stLabel) + '</span></td>' +
+          '<td><span class="bdg" style="background:' + stColor + '22;color:' + stColor + '">' + esc(stLabel) + '</span>' + (s.disposalDate ? '<div class="note">' + fmtDate(s.disposalDate) + '</div>' : '') + '</td>' +
           '<td>' + esc(s.location) + '</td>' +
           '<td>' + (s.nextLeakTest ? fmtDate(s.nextLeakTest) + ' <span class="note">(' + (leakDays <= 0 ? 'overdue' : leakDays + 'd') + ')</span>' : '<span class="note">—</span>') + '</td>' +
           '<td><span class="bdg ' + chk.cls + '">' + chk.label + '</span></td></tr>';
@@ -1359,6 +1308,8 @@ function renderDetailPanel() {
       '<div class="kv"><div class="k">Location / Department</div><div class="v" style="font-size:12px">' + esc(s.location || '') + (s.location && deptOf(s) ? ' · ' : '') + esc(deptOf(s)) + '</div></div>' +
       (exp ? '<div class="kv"><div class="k">Licence Expiry</div><div class="v mono" style="font-size:12px">' + fmtDate(exp) + '</div></div>' : '') +
       (s.serialNumber ? '<div class="kv"><div class="k">Serial Number</div><div class="v mono" style="font-size:12px">' + esc(s.serialNumber) + '</div></div>' : '') +
+      (s.brand ? '<div class="kv"><div class="k">Brand</div><div class="v" style="font-size:12px">' + esc(s.brand) + '</div></div>' : '') +
+      (s.equipmentModel ? '<div class="kv"><div class="k">Equipment Model</div><div class="v" style="font-size:12px">' + esc(s.equipmentModel) + '</div></div>' : '') +
       (s.surveyInstrumentSerial ? '<div class="kv"><div class="k">Survey Meter Serial</div><div class="v mono" style="font-size:12px">' + esc(s.surveyInstrumentSerial) + '</div></div>' : '') +
       (notifySent ? '<div class="kv"><div class="k">Owner Notified</div><div class="v" style="font-size:12px">' + fmtDate(notifyDate) + '</div></div>' : '') +
       '</div>';
@@ -1368,14 +1319,16 @@ function renderDetailPanel() {
       (stg === 'possess-use' ? '<button class="btn btn-g btn-s" data-act="iaCheck">📋 X-ray Survey Reporting</button>' : '') +
       (stg !== 'decommissioned' ? '<button class="btn btn-o btn-s" data-act="iaEdit">📝 Edit</button>' +
       '<button class="btn btn-p btn-s" data-act="licenceChange">✏ Renew Licence</button>' +
-      '<button class="btn btn-r btn-s" data-act="iaDecom">🗑 Decommission</button>' : '') + '</div>';
+      '<button class="btn btn-r btn-s" data-act="iaDecom">🗑 Decommission</button>' : '') +
+      (stg === 'decommissioned' && isAdmin() ? '<button class="btn btn-p btn-s" data-act="iaUndecom">♻ Undo Decommission</button>' : '') +
+      (stg === 'decommissioned' && !isAdmin() ? '<span class="note" style="align-self:center">🔐 Undoing a decommission requires the Admin role</span>' : '') + '</div>';
+    const dcUndo = lastUndo((s.decommission || {}).undoLog);
     h += '<div class="card" style="margin-bottom:12px;padding:12px"><h3 class="acc" style="margin-bottom:8px">📜 Licence Details</h3>' +
       '<div class="kv" style="display:grid;gap:8px">' +
       '<div class="kv"><div class="k">Licence Number</div><div class="v mono">' + esc(s.licenceNumber || '—') + '</div></div>' +
       (stg === 'possess' ?
         '<div class="kv"><div class="k">PO Number</div><div class="v mono">' + esc(s.purchaseLicenceNo || '—') + '</div></div>' +
         '<div class="kv"><div class="k">Import Licence</div><div class="v mono">' + (s.importLicenceNo ? esc(s.importLicenceNo) : 'not required') + '</div></div>' +
-        (s.floorPlanFile ? '<div class="kv"><div class="k">Floor Plan</div><div class="v">📎 ' + esc(s.floorPlanFile) + '</div></div>' : '') +
         '<div class="kv"><div class="k">X-ray Tube Serials</div><div class="v mono">' + esc(s.xrayTubeSerialNumbers || 'confirmed at installation') + '</div></div>'
       : stg === 'possess-use' ?
         '<div class="kv"><div class="k">X-ray Tube Serials</div><div class="v mono">' + esc(s.xrayTubeSerialNumbers || '—') + '</div></div>' +
@@ -1386,6 +1339,7 @@ function renderDetailPanel() {
         '<div class="kv"><div class="k">Board Verification</div><div class="v">' + fmtDate((s.decommission || {}).verifiedDate) + '</div></div>' +
         '<div class="kv"><div class="k">Approval Document</div><div class="v">📎 ' + esc((s.decommission || {}).approvalFile || 'none uploaded') + '</div></div>' +
         ((s.decommission || {}).notes ? '<div class="kv"><div class="k">Notes</div><div class="v note">' + esc(s.decommission.notes) + '</div></div>' : '')) +
+        (dcUndo ? '<div class="kv"><div class="k">Decommission Reversed</div><div class="v note">' + fmtDate(dcUndo.date) + ' · ' + esc(dcUndo.by || '') + ' — ' + esc(dcUndo.reason || '') + '</div></div>' : '') +
       '</div>' +
       (stg === 'possess' ? '<div class="note" style="margin-top:8px">The possess licence renews annually on its own cycle (e.g. while delivery is delayed). Annual checks begin once the apparatus holds a Possess &amp; Use licence.</div>' : '') +
       '</div>';
@@ -1422,6 +1376,7 @@ function renderDetailPanel() {
         '<div class="kv"><div class="k">Ref Date</div><div class="v" style="font-size:12px">' + fmtDate(s.referenceDate) + '</div></div>' +
         '<div class="kv"><div class="k">Source No.</div><div class="v mono" style="font-size:12px">' + esc(s.sourceNumber || '—') + '</div></div>' +
         '<div class="kv"><div class="k">Licence</div><div class="v mono" style="font-size:12px">' + esc(s.licenceNumber || '—') + '</div></div>' +
+        (s.disposalDate ? '<div class="kv"><div class="k">Disposal Date</div><div class="v" style="font-size:12px">' + fmtDate(s.disposalDate) + '</div></div>' : '') +
         '</div>';
       const chev = S.checkHistoryOpen ? '▾' : '▸';
       h += '<div class="card" style="margin-bottom:8px;padding:8px 10px">' +
@@ -1440,6 +1395,15 @@ function renderDetailPanel() {
         '</div>' +
         ((s.leakTestResult || s.leakTestCounts != null) ? leakResultKv(s) : '') +
         '<div class="hist" style="margin-top:4px">' + ((s.leakTestHistory || []).length ? s.leakTestHistory.map(x => '<div class="hi" style="padding:3px 0">' + esc(typeof x === 'string' ? x : leakEntryText(x)) + '</div>').join('') : '<div class="note">No leak tests recorded yet</div>') + '</div>' +
+        '</div>';
+      const lchev = S.licenceHistoryOpen ? '▾' : '▸';
+      h += '<div class="card" style="margin-bottom:8px;padding:8px 10px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-toggle="licenceHistory">' +
+        '<h3 style="margin:0;font-size:12px"><span class="acc">📜</span> Licence History <span class="note">(' + (s.licenceHistory || []).length + ')</span></h3>' +
+        '<span class="note" style="font-weight:600;font-size:11px">' + lchev + (S.licenceHistoryOpen ? ' hide' : ' show') + '</span></div>' +
+        (S.licenceHistoryOpen ? '<div class="hist" style="margin-top:6px">' +
+        ((s.licenceHistory || []).length ? s.licenceHistory.map(r => '<div class="hi"><div><b class="mono">' + esc(r.licenceNumber) + '</b><br><span class="note">' + fmtDate(r.changedDate) + ' by ' + esc(r.changedBy) + (r.notes ? ' — ' + esc(r.notes) : '') + '</span></div></div>').join('') : '<div class="note">No history recorded</div>') +
+        '</div>' : '') +
         '</div>';
     } else {
       const stLabel = {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || 'In Storage';
@@ -2079,12 +2043,12 @@ async function applyLicenceChange(id, newNumber, fileName, notes) {
 function exportCSV() {
   const rows = filteredSources();
   if (S.cat === 'apparatus') {
-    const out = [['Equipment','Stage','Location','SpaceID','Department','Custodian','Licence','Licence Expiry','Licence Status','Serial No.','Survey Meter','Last X-ray Survey']];
-    rows.forEach(s => { const ls = iaStage(s) === 'decommissioned' ? { label: 'Licence removed' } : computeLicenceState(s); out.push([s.equipmentDescription, STAGE_LABEL[iaStage(s)], s.location, s.spaceID, deptOf(s), s.custodian, s.licenceNumber, s.licenceExpiryDate || '', ls.label, s.serialNumber || '', s.surveyInstrumentSerial || '', s.lastXraySurveyDate || '']); });
+    const out = [['Equipment','Brand','Model','Stage','Location','SpaceID','Department','Custodian','Licence','Licence Expiry','Licence Status','Serial No.','Tube Serial(s)','Survey Meter','Last X-ray Survey']];
+    rows.forEach(s => { const ls = iaStage(s) === 'decommissioned' ? { label: 'Licence removed' } : computeLicenceState(s); out.push([s.equipmentDescription, s.brand || '', s.equipmentModel || '', STAGE_LABEL[iaStage(s)], s.location, s.spaceID, deptOf(s), s.custodian, s.licenceNumber, s.licenceExpiryDate || '', ls.label, s.serialNumber || '', s.xrayTubeSerialNumbers || '', s.surveyInstrumentSerial || '', s.lastXraySurveyDate || '']); });
     downloadCSV('apparatus_inventory_' + todayISO() + '.csv', out);
   } else {
-    const out = [['Source','Category','Isotope','Activity','Location','SpaceID','Department','Custodian','Status','Last Leak Test','Next Leak Test','Last Check']];
-    rows.forEach(s => out.push([s.sourceName, s.category, s.isotope, s.activity, s.location, s.spaceID, deptOf(s), s.custodian, s.status, s.lastLeakTest || '', s.nextLeakTest || '', s.lastInventoryCheckDate || '']));
+    const out = [['Source','Category','Isotope','Activity','Location','SpaceID','Department','Custodian','Status','Disposal Date','Last Leak Test','Next Leak Test','Last Check']];
+    rows.forEach(s => out.push([s.sourceName, s.category, s.isotope, s.activity, s.location, s.spaceID, deptOf(s), s.custodian, s.status, s.disposalDate || '', s.lastLeakTest || '', s.nextLeakTest || '', s.lastInventoryCheckDate || '']));
     downloadCSV(S.cat + '_sources_' + todayISO() + '.csv', out);
   }
   toast('⬇ CSV exported (' + rows.length + ' rows)');
@@ -2115,6 +2079,9 @@ function importCSV() {
         // Apparatus import
         const headerMap = {
           equipment: 'equipmentDescription',
+          brand: 'brand',
+          model: 'equipmentModel',
+          'equipment model': 'equipmentModel',
           stage: 'stage',
           location: 'location',
           spaceid: 'spaceID',
@@ -2126,6 +2093,9 @@ function importCSV() {
           'serial no.': 'serialNumber',
           'serial number': 'serialNumber',
           'serial': 'serialNumber',
+          'tube serial(s)': 'xrayTubeSerialNumbers',
+          'tube serials': 'xrayTubeSerialNumbers',
+          'x-ray tube serial(s)': 'xrayTubeSerialNumbers',
           'survey meter': 'surveyInstrumentSerial',
           'last x-ray survey': 'lastXraySurveyDate',
           'last check': 'lastXraySurveyDate'
@@ -2162,6 +2132,9 @@ function importCSV() {
                 licenceExpiryDate: obj.licenceExpiryDate || '',
                 lastXraySurveyDate: obj.lastXraySurveyDate || '',
                 serialNumber: obj.serialNumber || '',
+                xrayTubeSerialNumbers: obj.xrayTubeSerialNumbers || '',
+                brand: obj.brand || '',
+                equipmentModel: obj.equipmentModel || '',
                 surveyInstrumentSerial: obj.surveyInstrumentSerial || '',
                 stage: obj.stage || 'possess-use',
                 addedDate: todayISO(),
@@ -2186,6 +2159,7 @@ function importCSV() {
           department: 'department',
           custodian: 'custodian',
           status: 'status',
+          'disposal date': 'disposalDate',
           'last leak test': 'lastLeakTest',
           'next leak test': 'nextLeakTest',
           'last check': 'lastInventoryCheckDate'
@@ -2221,6 +2195,7 @@ function importCSV() {
                 department: obj.department || '',
                 custodian: obj.custodian || '',
                 status: obj.status || 'safe',
+                disposalDate: obj.disposalDate || '',
                 lastLeakTest: obj.lastLeakTest || '',
                 nextLeakTest: obj.nextLeakTest || '',
                 lastInventoryCheckDate: obj.lastInventoryCheckDate || '',
@@ -2304,6 +2279,8 @@ function openSourceForm(category, editId) {
     fields =
       '<div class="fi f"><label>Licence Stage *</label><select id="fStage"><option value="possess">Possess — purchase / [import], pre-installation</option><option value="possess-use">Possess &amp; Use — installed &amp; operational</option></select><div class="hint">New apparatus normally starts at Possess; change to Possess &amp; Use from the detail panel after installation.</div></div>' +
       '<div class="fi f"><label>Equipment Description *</label><input id="fDesc" placeholder="e.g., X-ray Diffractometer — Bruker D8 Advance"></div>' +
+      '<div class="fg"><div class="fi"><label>Brand</label><input id="fBrand" placeholder="e.g., Bruker"></div>' +
+      '<div class="fi"><label>Equipment Model</label><input id="fModel" placeholder="e.g., D8 Advance"></div></div>' +
       '<div class="fi f"><label>Irradiating Apparatus Serial Number</label><input id="fSerialNumber" placeholder="e.g., 102-11-04567"></div>' +
       '<div class="fi f"><label>X-ray Tube(s) Serial Number(s)</label><input id="fSerials" placeholder="SN-00001, SN-00002"><div class="hint">Comma-separated if multiple tubes — may be unknown until installation</div></div>' +
       '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="fSpace">' + spaceOpts + '</select></div>' +
@@ -2320,17 +2297,18 @@ function openSourceForm(category, editId) {
     fields =
       (category === 'sealed' ?
         '<div class="fi f"><label>Licence Number</label><input id="fLicence" placeholder="e.g., SS-2026-XXXX"></div>' +
-        '<div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
+        '<div class="fg"><div class="fi"><label>Status</label><select id="fStatus"><option value="purchasing">Purchasing</option><option value="in storage">In Storage</option><option value="in use">In Use</option><option value="disposed">Disposed</option></select></div>' +
+        '<div class="fi" id="fDisposalWrap" style="display:none"><label>Disposal Date *</label><input id="fDisposalDate" type="date"><div class="hint">Required once the source is marked Disposed</div></div></div>' +
         '<div class="fg"><div class="fi"><label>Location (Space ID) *</label><select id="' + spaceId + '">' + spaceOpts + '</select></div>' +
         '<div class="fi"><label>Custodian</label><input id="' + custodianId + '" placeholder="Auto-filled from Space ID"><div class="hint">Defaults to the PI of that department</div></div></div>' +
+        '<div class="fi f"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div>' +
         '<div class="fi f"><label>Description of Substance *</label><input id="fName" placeholder="e.g., Co-60 Calibration Source"></div>' +
         '<div class="fg"><div class="fi"><label>Source Number</label><input id="fSourceNo" placeholder="e.g., CS-001"></div>' +
         '<div class="fi"><label>Radionuclide *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
         '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq" selected>MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
         '<div class="fi"><label>Convert</label><div style="display:flex;gap:6px"><input id="fActivityConv" type="number" step="any" min="0" placeholder="0.00" style="flex:1" readonly><select id="fActivityConvUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq">GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div></div>' +
         '<div class="fg"><div class="fi"><label>Reference Date</label><input id="fRefDate" type="date"></div>' +
-        '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div></div>' +
-        '<div class="fi f"><label>Manufacturer</label><input id="fMfr" placeholder="e.g., Eckert & Ziegler"></div>' :
+        '<div class="fi"><label>Quantity</label><input id="fQty" type="number" min="1" placeholder="1"></div></div>' :
         '<div class="fi f"><label>Source Name *</label><input id="fName" placeholder="e.g., H-3 Thymidine"></div>' +
         '<div class="fg"><div class="fi"><label>Isotope *</label><select id="fIsotope">' + isoOpts + '</select></div></div>' +
         '<div class="fg"><div class="fi"><label>Activity *</label><div style="display:flex;gap:6px"><input id="fActivity" type="number" step="any" min="0" placeholder="0.00" style="flex:1"><select id="fActivityUnit" style="width:80px"><option value="Bq">Bq</option><option value="kBq">kBq</option><option value="MBq">MBq</option><option value="GBq" selected>GBq</option><option value="TBq">TBq</option><option value="uCi">µCi</option><option value="mCi">mCi</option><option value="Ci">Ci</option></select></div></div>' +
@@ -2356,6 +2334,8 @@ function openSourceForm(category, editId) {
     if (editing.custodian) document.getElementById(category === 'sealed' ? 'fCustodian_sealed' : 'fCustodian').value = editing.custodian;
     if (category === 'apparatus') {
       document.getElementById('fDesc').value = editing.equipmentDescription || '';
+      document.getElementById('fBrand').value = editing.brand || '';
+      document.getElementById('fModel').value = editing.equipmentModel || '';
       document.getElementById('fLicence').value = editing.licenceNumber || '';
       document.getElementById('fExpiry').value = editing.licenceExpiryDate || '';
       document.getElementById('fSerials').value = editing.xrayTubeSerialNumbers || '';
@@ -2369,6 +2349,7 @@ function openSourceForm(category, editId) {
       if (editing.manufacturer) document.getElementById('fMfr').value = editing.manufacturer;
       if (editing.licenceNumber) document.getElementById('fLicence').value = editing.licenceNumber;
       if (editing.sourceStatus) document.getElementById('fStatus').value = editing.sourceStatus;
+      if (editing.disposalDate) document.getElementById('fDisposalDate').value = editing.disposalDate;
       // Parse activity string for editing
       if (editing.activity) {
         const m = String(editing.activity).match(/([\d.]+)\s*(Bq|kBq|MBq|GBq|TBq|uCi|µCi|mCi|Ci)/i);
@@ -2415,6 +2396,16 @@ function openSourceForm(category, editId) {
     };
     stageSel.addEventListener('change', syncStage);
     syncStage();
+  }
+  // Sealed sources: the disposal date only applies once the status is Disposed
+  const statusSel = document.getElementById('fStatus');
+  if (statusSel) {
+    const syncStatus = () => {
+      const wrap = document.getElementById('fDisposalWrap');
+      if (wrap) wrap.style.display = statusSel.value === 'disposed' ? '' : 'none';
+    };
+    statusSel.addEventListener('change', syncStatus);
+    syncStatus();
   }
   const fillCustodian = () => {
     const opt = selSpace.options[selSpace.selectedIndex];
@@ -2475,7 +2466,9 @@ function openSourceForm(category, editId) {
           licenceNumber: licence || undefined, licenceFile: fname || undefined, licenceExpiryDate: expiry || undefined,
           notificationDate: notify,
           xrayTubeSerialNumbers: document.getElementById('fSerials').value.trim() || undefined,
-          serialNumber: document.getElementById('fSerialNumber').value.trim() || undefined
+          serialNumber: document.getElementById('fSerialNumber').value.trim() || undefined,
+          brand: document.getElementById('fBrand').value.trim() || undefined,
+          equipmentModel: document.getElementById('fModel').value.trim() || undefined
         });
         if (licence !== oldNum) {
           editing.licenceHistory = editing.licenceHistory || [];
@@ -2492,6 +2485,8 @@ function openSourceForm(category, editId) {
         notificationDate: notify,
         xrayTubeSerialNumbers: document.getElementById('fSerials').value.trim() || undefined,
         serialNumber: document.getElementById('fSerialNumber').value.trim() || undefined,
+        brand: document.getElementById('fBrand').value.trim() || undefined,
+        equipmentModel: document.getElementById('fModel').value.trim() || undefined,
         licenceHistory: licence ? [{ id: uid('lh'), licenceNumber: licence, changedDate: todayISO(), changedBy: 'Marcus Chen', fileName: fname, notes: stage === 'possess' ? 'Initial registration — possess licence' : 'Initial registration' }] : [],
         checkHistory: []
       };
@@ -2502,6 +2497,9 @@ function openSourceForm(category, editId) {
       const activityVal = parseFloat(document.getElementById('fActivity').value);
       const activityUnit = document.getElementById('fActivityUnit') ? document.getElementById('fActivityUnit').value : 'MBq';
       if (!name || isNaN(activityVal) || activityVal <= 0 || !space) return showErr('Source name, activity and location are required.');
+      const srcStatus = document.getElementById('fStatus') ? document.getElementById('fStatus').value : 'in storage';
+      const disposalDate = document.getElementById('fDisposalDate') ? document.getElementById('fDisposalDate').value : '';
+      if (category === 'sealed' && srcStatus === 'disposed' && !disposalDate) return showErr('A disposal date is required when the source status is Disposed.');
       // Convert activity to MBq for storage
       const toMBq = { Bq: 0.000001, kBq: 0.001, MBq: 1, GBq: 1000, TBq: 1000000, uCi: 0.037, mCi: 37, Ci: 37000 };
       const activityMBq = activityVal * toMBq[activityUnit];
@@ -2525,7 +2523,8 @@ function openSourceForm(category, editId) {
           sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
           quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
           manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
-          sourceStatus: document.getElementById('fStatus') ? document.getElementById('fStatus').value : 'in storage',
+          sourceStatus: srcStatus,
+          disposalDate: srcStatus === 'disposed' ? (disposalDate || undefined) : undefined,
           licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined
         });
         source = editing;
@@ -2543,7 +2542,8 @@ function openSourceForm(category, editId) {
         sourceNumber: document.getElementById('fSourceNo') ? document.getElementById('fSourceNo').value.trim() || undefined : undefined,
         quantity: document.getElementById('fQty') ? (parseInt(document.getElementById('fQty').value) || 1) : 1,
         manufacturer: document.getElementById('fMfr') ? document.getElementById('fMfr').value.trim() || undefined : undefined,
-          sourceStatus: document.getElementById('fStatus') ? document.getElementById('fStatus').value : 'in storage',
+        sourceStatus: srcStatus,
+        disposalDate: srcStatus === 'disposed' ? (disposalDate || undefined) : undefined,
         licenceNumber: document.getElementById('fLicence') ? document.getElementById('fLicence').value.trim() || undefined : undefined,
         usageLog: []
       };
@@ -2774,8 +2774,10 @@ function openDecommissionForm(id) {
     const fname = f.files.length ? f.files[0].name : '';
     if (!fname) { document.getElementById('dcErr').textContent = 'The Board-approved disposal document (PDF) is required.'; document.getElementById('dcErrWrap').style.display = 'block'; return; }
     if (!fname.toLowerCase().endsWith('.pdf')) { document.getElementById('dcErr').textContent = 'Disposal approval document must be a PDF file.'; document.getElementById('dcErrWrap').style.display = 'block'; return; }
+    const prevDc = s.decommission || {};
+    const undoLog = (prevDc.undoLog || []).slice();
+    s.decommission = { approvalDate: a, destroyedDate: d, verifiedDate: v, approvalFile: fname, notes: document.getElementById('dcNotes').value.trim() || undefined, prevStage: s.stage || 'possess-use', undoLog: undoLog.length ? undoLog : undefined };
     s.stage = 'decommissioned';
-    s.decommission = { approvalDate: a, destroyedDate: d, verifiedDate: v, approvalFile: fname, notes: document.getElementById('dcNotes').value.trim() || undefined };
     s.licenceHistory = s.licenceHistory || [];
     s.licenceHistory.unshift({ id: uid('lh'), licenceNumber: s.licenceNumber || '—', changedDate: v, changedBy: 'Marcus Chen', fileName: fname, notes: 'Licence removed on decommissioning — tubes destroyed & verified by Board' });
     await persistSource(s);
@@ -2783,6 +2785,54 @@ function openDecommissionForm(id) {
     closeModal();
     renderAll();
   };
+}
+
+// Admin-only reversals: a reason is mandatory and is stored with the user and date
+function openReasonModal(title, onOk) {
+  const html = '<div class="mback" id="mback"><div class="modal">' +
+    '<div class="mh"><h3><span class="acc">🔐</span> ' + title + '</h3><button class="x" data-close>✕</button></div>' +
+    '<div style="display:grid;gap:12px">' +
+    '<div class="fi f"><label>Reason *</label><textarea id="rsReason" rows="3" placeholder="Mandatory — stored in the audit trail with your name and date"></textarea></div>' +
+    '<div class="fi f" id="rsErrWrap" style="display:none"><div style="background:var(--red-l);color:var(--red);border-radius:6px;padding:8px 12px;font-size:11px" id="rsErr"></div></div>' +
+    '</div>' +
+    '<div class="mbtns"><button class="btn btn-o" data-close>Cancel</button><button class="btn btn-r" id="rsOk">Confirm Reversal</button></div>' +
+    '</div></div>';
+  document.getElementById('modalHost').innerHTML = html;
+  document.getElementById('rsOk').onclick = () => {
+    const reason = document.getElementById('rsReason').value.trim();
+    if (!reason) { document.getElementById('rsErr').textContent = 'A reason is required to reverse this action.'; document.getElementById('rsErrWrap').style.display = 'block'; return; }
+    closeModal();
+    onOk(reason, (currentUser() || {}).name || 'Admin');
+  };
+}
+
+function openUndoDecommission(id) {
+  const s = S.sources.find(x => x.id === id);
+  if (!s || s.stage !== 'decommissioned' || !isAdmin()) return;
+  openReasonModal('Undo Decommission — ' + esc(s.equipmentDescription || ''), async (reason, by) => {
+    const dc = s.decommission || {};
+    s.stage = dc.prevStage || 'possess-use';
+    s.decommission = Object.assign({}, dc, { undoLog: (dc.undoLog || []).concat([{ reason, by, date: todayISO() }]) });
+    s.licenceHistory = s.licenceHistory || [];
+    s.licenceHistory.unshift({ id: uid('lh'), licenceNumber: s.licenceNumber || '—', changedDate: todayISO(), changedBy: by, fileName: dc.approvalFile, notes: 'Decommission reversed — ' + reason });
+    await persistSource(s);
+    toast('♻ Decommission reversed for ' + (s.equipmentDescription || 'apparatus') + ' — now ' + STAGE_LABEL[s.stage]);
+    renderAll();
+  });
+}
+
+function openUndoDisposal(id) {
+  const w = S.waste.find(x => x.id === id);
+  if (!w || w.status !== 'disposed' || !isAdmin()) return;
+  openReasonModal('Undo Disposal — Tag ' + esc(w.tagNo), async (reason, by) => {
+    w.disposalUndoLog = (w.disposalUndoLog || []).concat([{ reason, by, date: todayISO(), disposedDate: w.disposedDate, disposedBy: w.disposedBy, disposalMethod: w.disposalMethod, disposalNotes: w.disposalNotes }]);
+    w.disposedDate = undefined; w.disposedBy = undefined; w.disposalMethod = undefined; w.disposalNotes = undefined;
+    w.status = 'collected';
+    await persistWaste(w);
+    toast('↩ Disposal reversed for tag ' + w.tagNo + ' — container back in storage');
+    S.wasteView = 'collected';
+    renderAll();
+  });
 }
 
 function openUsageForm(id) {
@@ -2823,6 +2873,8 @@ function openXraySurveyForm(id) {
   const appInfo = '<div class="kv" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:10px;background:var(--bg2);border-radius:6px;margin-bottom:10px">' +
     '<div class="kv"><div class="k">Licence Number</div><div class="v mono">' + esc(s.licenceNumber || '—') + '</div></div>' +
     '<div class="kv"><div class="k">Equipment</div><div class="v">' + esc(s.equipmentDescription || '—') + '</div></div>' +
+    '<div class="kv"><div class="k">Brand</div><div class="v">' + esc(s.brand || '—') + '</div></div>' +
+    '<div class="kv"><div class="k">Equipment Model</div><div class="v">' + esc(s.equipmentModel || '—') + '</div></div>' +
     '<div class="kv"><div class="k">Apparatus Serial No.</div><div class="v mono">' + esc(s.serialNumber || '—') + '</div></div>' +
     '<div class="kv"><div class="k">Tube Serial(s) No.</div><div class="v mono">' + esc(s.xrayTubeSerialNumbers || '—') + '</div></div>' +
     '<div class="kv"><div class="k">Department</div><div class="v">' + esc(deptOf(s) || '—') + '</div></div>' +
@@ -2837,8 +2889,7 @@ function openXraySurveyForm(id) {
     '<div class="fi"><label>Conducted By *</label><input id="xsConductedBy" placeholder="Name"></div></div>' +
     '<div class="fg"><div class="fi"><label>Instrument Used</label><input id="xsInstrument" value="' + esc(instrument) + '" placeholder="e.g., RADIAGEM 2000"></div>' +
     '<div class="fi"><label>Instrument Serial No.</label><input id="xsInstrumentSerial" value="' + esc(s.surveyInstrumentSerial || '') + '" placeholder="Serial number"></div></div>' +
-    '<div class="fg"><div class="fi"><label>Calibration Date</label><input id="xsCalibrationDate" type="date"></div>' +
-    '<div class="fi"><label>Manufacturer / Model</label><input id="xsManufacturer" placeholder="e.g., Bruker D8 Advance"></div></div>' +
+    '<div class="fi f"><label>Calibration Date</label><input id="xsCalibrationDate" type="date"></div>' +
     '<div style="font-weight:700;color:var(--txt2);font-size:11px;margin-top:2px">Monitoring Parameters / Operation Condition</div>' +
     '<div class="fg"><div class="fi"><label><span class="unit">kV</span></label><input id="xskV" type="number" step="any" placeholder="kV"></div>' +
     '<div class="fi"><label><span class="unit">mA</span></label><input id="xsmA" type="number" step="any" placeholder="mA"></div></div>' +
@@ -2859,9 +2910,7 @@ function openXraySurveyForm(id) {
     '</div></div>';
   document.getElementById('modalHost').innerHTML = html;
   const readingsEl = document.getElementById('xsReadings');
-  let readingCount = 0;
   function addReading() {
-    readingCount++;
     const row = document.createElement('div');
     row.className = 'fg';
     row.style.cssText = 'align-items:flex-end';
@@ -2921,7 +2970,6 @@ function openXraySurveyForm(id) {
       instrumentSerial: document.getElementById('xsInstrumentSerial').value.trim() || undefined,
       calibrationDate: document.getElementById('xsCalibrationDate').value || undefined,
       conductedBy,
-      manufacturer: document.getElementById('xsManufacturer').value.trim() || undefined,
       operationType: document.getElementById('xsOperationType').value.trim() || undefined,
       kV: document.getElementById('xskV').value.trim() || undefined,
       mA: document.getElementById('xsmA').value.trim() || undefined,
@@ -2996,10 +3044,11 @@ function printXraySurveyReport(s, xs, isSaved) {
     '<div class="iline"><label>Calibration Date:</label>' + fmtDate(xs.calibrationDate) + '</div>' +
     '<div class="iline"><label>Conducted by:</label>' + esc(xs.conductedBy || '') + '</div>' +
     '<div class="subhead">Irradiating Apparatus Monitored</div>' +
+    '<div class="row"><div class="field"><label>Equipment:</label><div class="uline">' + esc(s.equipmentDescription || '') + '</div></div></div>' +
     '<div class="row"><div class="field"><label>Licence Number:</label><div class="uline" style="font-family:monospace">' + esc(s.licenceNumber || '') + '</div></div>' +
-    '<div class="field"><label>Manufacturer / Model:</label><div class="uline">' + esc(xs.manufacturer || '') + '</div></div></div>' +
+    '<div class="field"><label>Manufacturer:</label><div class="uline">' + esc(s.brand || '') + '</div></div></div>' +
     '<div class="row"><div class="field"><label>Serial/Tube No.:</label><div class="uline" style="font-family:monospace">' + esc(serialTube) + '</div></div>' +
-    '<div class="field"><label>Equipment:</label><div class="uline">' + esc(s.equipmentDescription || '') + '</div></div></div>' +
+    '<div class="field"><label>Model:</label><div class="uline">' + esc(s.equipmentModel || '') + '</div></div></div>' +
     '<div class="subhead">Monitoring Parameters / Operation condition</div>' +
     '<div class="row"><div class="field"><label>kV:</label><div class="uline">' + esc(xs.kV || '') + '</div></div>' +
     '<div class="field"><label>mA:</label><div class="uline">' + esc(xs.mA || '') + '</div></div>' +
@@ -3043,7 +3092,7 @@ function renderRua() {
   const rows = S.ruas.filter(u => {
     if (S.ruaDept && u.department !== S.ruaDept) return false;
     if (S.ruaShowInactive !== true && u.status === 'inactive') return false;
-    return !q || (u.spaceID + ' ' + u.department + ' ' + (u.personInCharge || '') + ' ' + (u.ruaNo || '')).toLowerCase().includes(q);
+    return !q || (u.spaceID + ' ' + u.department + ' ' + (u.personInCharge || '') + ' ' + (u.contactPerson || '') + ' ' + (u.ruaNo || '')).toLowerCase().includes(q);
   });
   const ruaDepts = [...new Set(S.ruas.map(u => u.department))].filter(Boolean).sort();
 
@@ -3088,7 +3137,10 @@ function renderRuaDetail() {
   const isInactive = u.status === 'inactive';
   h += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><button class="btn btn-p btn-s" data-act="ruaSwipe">🧪 Conduct Swipe Test</button><button class="btn btn-o btn-s" data-act="ruaEdit">✏ Edit RUA</button><button class="btn btn-o btn-s" data-act="ruaRenew">🔄 Renew for 1 Year</button><button class="btn ' + (isInactive ? 'btn-p' : 'btn-r') + ' btn-s" data-act="ruaToggleStatus">' + (isInactive ? '✓ Set Active' : '⊘ Set Inactive') + '</button></div>';
   if (u.personInCharge) {
-    h += '<div class="kv" style="margin-bottom:12px"><div class="k">Person in Charge</div><div class="v">' + esc(u.personInCharge) + '</div></div>';
+    h += '<div class="kv" style="margin-bottom:12px"><div class="k">' + (u.type === 'Individual' ? 'Principal Investigator' : 'Lab In Charge') + '</div><div class="v">' + esc(u.personInCharge) + '</div></div>';
+  }
+  if (u.contactPerson) {
+    h += '<div class="kv" style="margin-bottom:12px"><div class="k">Contact Person</div><div class="v">' + esc(u.contactPerson) + '</div></div>';
   }
   h += '<div class="kv" style="margin-bottom:12px"><div class="k">RUA No.</div><div class="v mono">' + esc(u.ruaNo || '—') + '</div></div>';
   h += '<div class="kv" style="margin-bottom:12px"><div class="k">Expiry</div><div class="v"><span class="bdg ' + ex.color + '">' + ex.label + '</span></div></div>';
@@ -3185,7 +3237,8 @@ function renderRuaEdit() {
     '<div class="fi"><label>Space ID *</label><select id="rfSpace">' + spaceOpts + '</select></div>' +
     '<div class="fi"><label>Authorization Type *</label><select id="rfType"><option ' + (editing && editing.type === 'Individual' ? '' : 'selected') + '>Communal</option><option ' + (editing && editing.type === 'Individual' ? 'selected' : '') + '>Individual</option></select></div>' +
     '<div class="fi"><label>Expiry Date * (renewed annually)</label><input type="date" id="rfExpiry" value="' + ((editing && editing.expiryDate) || addYearISO()) + '"><div class="hint">An alert is raised one month before expiry</div></div>' +
-    '<div class="fi" id="rfPicWrap" style="display:' + (editing ? 'flex' : 'none') + '"><label>Person in Charge *</label><input id="rfPic" value="' + esc(editing && editing.personInCharge || '') + '" placeholder="Name of the person in charge"></div>' +
+    '<div class="fi"><label id="rfPicLabel">Person in Charge *</label><input id="rfPic" value="' + esc(editing && editing.personInCharge || '') + '" placeholder="Name of the person in charge"></div>' +
+    '<div class="fi"><label>Contact Person</label><input id="rfContact" value="' + esc(editing && editing.contactPerson || '') + '" placeholder="Contact person for this authorization"></div>' +
     '</div>' +
     '<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:11px;text-transform:uppercase;color:var(--txt2)">PI Groups</b><button class="icobtn" id="rfAddGrp">+ Add Group</button></div><div id="rfGroups">' + groups.map(groupRowHtml).join('') + '</div></div>' +
     '<div><b style="font-size:11px;text-transform:uppercase;color:var(--txt2)">Safety Controls *</b><div class="hint" style="margin-bottom:6px">Required controls for this location</div>' +
@@ -3197,7 +3250,11 @@ function renderRuaEdit() {
 
   const selSpace = document.getElementById('rfSpace');
   const selType = document.getElementById('rfType');
-  selType.onchange = () => { document.getElementById('rfPicWrap').style.display = selType.value === 'Individual' ? 'flex' : 'none'; };
+  const updateTypeLabels = () => {
+    document.getElementById('rfPicLabel').textContent = selType.value === 'Individual' ? 'Principal Investigator *' : 'Lab In Charge';
+  };
+  selType.onchange = updateTypeLabels;
+  updateTypeLabels();
 
   const closeEditor = () => { S.ruaEditId = null; renderAll(); };
   document.getElementById('rfCancel').onclick = closeEditor;
@@ -3270,6 +3327,7 @@ function renderRuaEdit() {
     const type = selType.value;
     const dept = selSpace.options[selSpace.selectedIndex].dataset.dept;
     const pic = document.getElementById('rfPic') ? document.getElementById('rfPic').value.trim() : '';
+    const contact = document.getElementById('rfContact') ? document.getElementById('rfContact').value.trim() : '';
     const expiry = document.getElementById('rfExpiry').value;
     if (type === 'Individual' && !pic) return showErr('Person in charge is required for Individual authorizations.');
     if (!expiry) return showErr('An expiry date is required.');
@@ -3299,10 +3357,10 @@ function renderRuaEdit() {
     if (editing) {
       rua = S.ruas.find(x => x.id === editing.id);
       const changes = diffRuaGroups(rua.groups, builtGroups);
-      Object.assign(rua, { ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, expiryDate: expiry, safetyControls: controls, groups: builtGroups });
+      Object.assign(rua, { ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, contactPerson: contact || undefined, expiryDate: expiry, safetyControls: controls, groups: builtGroups });
       if (changes.length) { rua.changeHistory = rua.changeHistory || []; rua.changeHistory.push({ id: uid('rh'), date: todayISO(), changes }); }
     } else {
-      rua = { id: uid('rua'), ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, expiryDate: expiry, addedDate: todayISO(), safetyControls: controls, groups: builtGroups, changeHistory: [{ id: uid('rh'), date: todayISO(), changes: ['Authorization created'] }] };
+      rua = { id: uid('rua'), ruaNo, spaceID: space, type, department: dept, personInCharge: pic || undefined, contactPerson: contact || undefined, expiryDate: expiry, addedDate: todayISO(), safetyControls: controls, groups: builtGroups, changeHistory: [{ id: uid('rh'), date: todayISO(), changes: ['Authorization created'] }] };
       S.ruas.push(rua);
     }
     await persistRua(rua);
@@ -3444,6 +3502,7 @@ function openRosterForm(id) {
 }
 
 async function deleteRosterEntry(id) {
+  if (!isAdmin()) { toast('🔐 Only the Admin can delete records'); return; }
   const r = S.doseRoster.find(x => x.id === id);
   if (!r) return;
   if (!confirm('Remove ' + r.name + ' from the dosimetry roster? This cannot be undone.')) return;
@@ -3769,7 +3828,7 @@ function renderWasteCollected() {
         '<td>' + wasteClassBadge(w.wasteClass) + '</td>' +
         '<td><span class="note" style="text-transform:uppercase">' + esc(w.form) + '</span></td>' +
         '<td class="mono">' + esc(w.isotope) + '</td>' +
-        '<td>' + fmtDate(w.collectedDate) + '<div class="note">' + esc(w.collectedBy || '') + (w.notes ? ' — ' + esc(w.notes) : '') + '</div></td>' +
+        '<td>' + fmtDate(w.collectedDate) + '<div class="note">' + esc(w.collectedBy || '') + (w.notes ? ' — ' + esc(w.notes) : '') + '</div>' + (lastUndo(w.disposalUndoLog) ? '<div class="note" style="color:var(--amb)">↩ disposal reversed ' + fmtDate(lastUndo(w.disposalUndoLog).date) + ' by ' + esc(lastUndo(w.disposalUndoLog).by || '') + ': ' + esc(lastUndo(w.disposalUndoLog).reason || '') + '</div>' : '') + '</td>' +
         '<td class="mono">' + estActivityCell(w) + '</td>' +
         '<td class="mono">' + currentActivityCell(w) + '</td>' +
         '<td>' + pctALICell(w) + '</td>' +
@@ -3821,11 +3880,11 @@ function renderWasteDisposed() {
   }
 
   // Individual containers, each linked to the disposal record (Record No.) it belongs to
-  html += '<div class="section-title" style="margin-top:14px"><span class="acc">📤</span> Disposed Containers <span class="note">(' + rows.length + ' recorded' + (month ? ' in ' + esc(month) : '') + ')</span></div>';
+  html += '<div class="section-title" style="margin-top:14px"><span class="acc">📤</span> Disposed Containers <span class="note">(' + rows.length + ' recorded' + (month ? ' in ' + esc(month) : '') + (isAdmin() ? ' · 🔐 Admin — undo enabled' : ' · 🔐 undo requires the Admin role') + ')</span></div>';
   if (rows.length === 0) {
     html += '<div class="empty"><div class="big">📤</div>No disposed containers found' + (month ? ' in ' + esc(month) : '') + '.</div>';
   } else {
-    html += '<div class="tw"><table><thead><tr><th>Tag No.</th><th>Record No.</th><th>Class</th><th>Form</th><th>Isotope</th><th>Activity at Disposal</th><th>Disposal Date</th><th>Method</th><th>Department</th></tr></thead><tbody>' +
+    html += '<div class="tw"><table><thead><tr><th>Tag No.</th><th>Record No.</th><th>Class</th><th>Form</th><th>Isotope</th><th>Activity at Disposal</th><th>Disposal Date</th><th>Method</th><th>Department</th>' + (isAdmin() ? '<th></th>' : '') + '</tr></thead><tbody>' +
       rows.map(w => '<tr>' +
         '<td class="mono" style="color:var(--txt);font-weight:600">' + esc(w.tagNo) + '</td>' +
         '<td class="mono">' + recordNoOf(w.disposedDate) + '</td>' +
@@ -3835,7 +3894,7 @@ function renderWasteDisposed() {
         '<td class="mono">' + activityAtDisposalCell(w) + '</td>' +
         '<td>' + fmtDate(w.disposedDate) + '<div class="note">' + esc(w.disposedBy || '') + (w.disposalNotes ? ' — ' + esc(w.disposalNotes) : '') + '</div></td>' +
         '<td>' + esc(w.disposalMethod || '—') + '</td>' +
-        '<td>' + esc(w.department) + '</td></tr>').join('') +
+        '<td>' + esc(w.department) + '</td>' + (isAdmin() ? '<td style="white-space:nowrap"><button class="icobtn" data-wundo="' + w.id + '" title="Undo disposal — admin only">↩</button></td>' : '') + '</tr>').join('') +
       '</tbody></table></div>';
   }
     html += '<div class="note" style="margin-top:10px"><b>Disposal Records</b> group containers disposed together (same date, person and method) into one standardized PDF (Record No. WD-YYMMDD); <b>Disposed Containers</b> lists each container individually, linked to its Record No. “Activity at Disposal” is decay-corrected from the collection date to the disposal date using the isotope half-life; the original collection estimate is shown alongside.</div>';
@@ -4037,48 +4096,6 @@ function printUnsealedSummary() {
   printCard('Unsealed Inventory Summary — Location × Isotope', b);
 }
 
-function annualWasteData(y) {
-  const inY = d => (d || '').startsWith(String(y));
-  const byIso = {};
-  S.waste.forEach(w => {
-    const iso = w.isotope || '—';
-    byIso[iso] = byIso[iso] || { cn: 0, cu: 0, dn: 0, du: 0, sn: 0 };
-    if (inY(w.collectedDate)) { byIso[iso].cn++; byIso[iso].cu += w.activityUCi || 0; }
-    if (w.status === 'disposed' && inY(w.disposedDate)) { byIso[iso].dn++; byIso[iso].du += w.activityUCi || 0; }
-    if (w.status !== 'disposed') byIso[iso].sn++;
-  });
-  const keys = Object.keys(byIso).sort((a, b) => byIso[b].cu - byIso[a].cu);
-  const tot = keys.reduce((t, k) => ({ cn: t.cn + byIso[k].cn, cu: t.cu + byIso[k].cu, dn: t.dn + byIso[k].dn, du: t.du + byIso[k].du, sn: t.sn + byIso[k].sn }), { cn: 0, cu: 0, dn: 0, du: 0, sn: 0 });
-  return { keys, byIso, tot };
-}
-
-function printAnnualWaste() {
-  const df = S.wasteDateFrom || '';
-  const dt = S.wasteDateTo || '';
-  const byIso = {};
-  S.waste.forEach(w => {
-    const iso = w.isotope || '—';
-    byIso[iso] = byIso[iso] || { cn: 0, cu: 0, dn: 0, du: 0, sn: 0 };
-    const collected = !df || w.collectedDate >= df;
-    const collectedBefore = !dt || w.collectedDate <= dt;
-    if (collected && collectedBefore) { byIso[iso].cn++; byIso[iso].cu += w.activityUCi || 0; }
-    if (w.status === 'disposed') {
-      const disposed = !df || (w.disposedDate || '') >= df;
-      const disposedBefore = !dt || (w.disposedDate || '') <= dt;
-      if (disposed && disposedBefore) { byIso[iso].dn++; byIso[iso].du += w.activityUCi || 0; }
-    }
-    if (w.status !== 'disposed' && collected && collectedBefore) byIso[iso].sn++;
-  });
-  const keys = Object.keys(byIso).sort((a, b) => byIso[b].cu - byIso[a].cu);
-  const tot = keys.reduce((t, k) => ({ cn: t.cn + byIso[k].cn, cu: t.cu + byIso[k].cu, dn: t.dn + byIso[k].dn, du: t.du + byIso[k].du, sn: t.sn + byIso[k].sn }), { cn: 0, cu: 0, dn: 0, du: 0, sn: 0 });
-  const rangeLabel = df && dt ? fmtDate(df) + ' — ' + fmtDate(dt) : df ? 'From ' + fmtDate(df) : dt ? 'Up to ' + fmtDate(dt) : 'All time';
-  const b = '<table><thead><tr><th class="l">Isotope</th><th>Collected</th><th>Collected (µCi)</th><th>Disposed</th><th>Disposed (µCi)</th><th>Still in Storage</th><th>Remaining (MBq)</th></tr></thead><tbody>' +
-    keys.map(k => { const r = byIso[k]; return '<tr><td class="l">' + esc(k) + '</td><td>' + r.cn + '</td><td>' + fmtUCi(r.cu) + '</td><td>' + r.dn + '</td><td>' + fmtUCi(r.du) + '</td><td>' + r.sn + '</td><td>' + ((r.cu - r.du) * UCII_TO_MBQ).toFixed(3) + '</td></tr>'; }).join('') +
-    '</tbody><tfoot><tr><td class="l">Total</td><td>' + tot.cn + '</td><td>' + fmtUCi(tot.cu) + '</td><td>' + tot.dn + '</td><td>' + fmtUCi(tot.du) + '</td><td>' + tot.sn + '</td><td>' + ((tot.cu - tot.du) * UCII_TO_MBQ).toFixed(3) + '</td></tr></tfoot></table>' +
-    '<p>Waste summary — ' + rangeLabel + '</p>';
-  printCard('Waste Summary — ' + rangeLabel, b);
-}
-
 function openWasteForm() {
   const ruaOpts = '<option value="">— Select RUA (location / department) —</option>' + S.ruas.map(u => '<option value="' + u.id + '">' + esc(u.spaceID) + ' — ' + esc(u.department) + (u.type === 'Individual' && u.personInCharge ? ' (' + esc(u.personInCharge) + ')' : '') + '</option>').join('');
   const isoOpts = ISOTOPE_OPTIONS.map(i => '<option>' + i + '</option>').join('');
@@ -4194,6 +4211,7 @@ function openDisposeForm(id) {
 }
 
 async function deleteWaste(id) {
+  if (!isAdmin()) { toast('🔐 Only the Admin can delete records'); return; }
   const w = S.waste.find(x => x.id === id);
   if (!w) return;
   if (!confirm('Delete waste container record ' + w.tagNo + '? This cannot be undone.')) return;
@@ -4305,7 +4323,9 @@ function renderAll() {
   renderTabs();
   if (S.tab === 'overview') { document.getElementById('mainContent').innerHTML = ''; }
   else if (S.tab === 'inventory') renderInventory();
+  else if (S.tab === 'licences') renderLicences();
   else if (S.tab === 'rua') renderRua();
+  else if (S.tab === 'personnel') renderPersonnel();
   else if (S.tab === 'dosimeter') renderDosimetry();
   else if (S.tab === 'isotopes') renderIsotopes();
   else if (S.tab === 'monthly') renderMonthlySummary();
@@ -4316,7 +4336,7 @@ function renderAll() {
 }
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], [data-xsprint], [data-chk], #invAdd, #invAdd2, #invExport, #invImport, #invRenewLicence, #batchVerify, #batchLicence, #batchClear, #selAll, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
+  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wundo], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licdetail], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], [data-xsprint], [data-chk], #invAdd, #invAdd2, #invExport, #invImport, #invRenewLicence, #batchVerify, #batchLicence, #batchClear, #selAll, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
   if (!t) return;
   // Handle individual checkbox selection
   if (t.dataset.chk) {
@@ -4396,6 +4416,8 @@ document.addEventListener('click', async (e) => {
     renderDocuments(); return;
   }
   if (t.dataset.toggle === 'checkHistory') { S.checkHistoryOpen = !S.checkHistoryOpen; renderInventory(); return; }
+  if (t.dataset.toggle === 'licenceHistory') { S.licenceHistoryOpen = !S.licenceHistoryOpen; renderInventory(); return; }
+  if (t.dataset.licdetail) { S.licenceDetailId = S.licenceDetailId === t.dataset.licdetail ? null : t.dataset.licdetail; renderLicences(); return; }
   if (t.dataset.licfilter) { S.docLicFilter = t.dataset.licfilter; renderDocuments(); return; }
   if (t.dataset.licfile) {
     const url = licFileUrl(t.dataset.licfile);
@@ -4426,6 +4448,7 @@ document.addEventListener('click', async (e) => {
   if (t.dataset.wview) { S.wasteView = t.dataset.wview; S.wasteSearch = ''; renderWaste(); return; }
   if (t.hasAttribute('data-wpdf')) { exportDisposalPDF(+t.dataset.wpdf); return; }
   if (t.dataset.wdisp) { openDisposeForm(t.dataset.wdisp); return; }
+  if (t.dataset.wundo) { openUndoDisposal(t.dataset.wundo); return; }
   if (t.dataset.wdel) { await deleteWaste(t.dataset.wdel); return; }
   if (act === 'leakTest') { await performLeakTest(S.detailId); return; }
     if (act === 'swipeTest') { await performSwipeTest(S.detailId); return; }
@@ -4442,6 +4465,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'unsealedEdit') { openSourceForm('unsealed', S.detailId); return; }
     if (act === 'iaToPU') { openPossessUseForm(S.detailId); return; }
     if (act === 'iaDecom') { openDecommissionForm(S.detailId); return; }
+    if (act === 'iaUndecom') { openUndoDecommission(S.detailId); return; }
   if (act === 'notifyOwner') { await notifyOwner(S.detailId); return; }
   if (act === 'saveLicenceTemplate') {
     const tpl = document.getElementById('emailTemplate').value;
@@ -4583,6 +4607,240 @@ function renderDocuments() {
   document.getElementById('mainContent').innerHTML = html;
 }
 
+function renderLicences() {
+  const q = (S.licenceSearch || '').toLowerCase().trim();
+  const cat = S.licenceCatFilter || 'all';
+  const statusLabel = (s) => {
+    if (s.category === 'apparatus') return STAGE_LABEL[iaStage(s)];
+    if (s.category === 'sealed') return {'purchasing':'Purchasing','in storage':'In Storage','in use':'In Use','disposed':'Disposed'}[s.sourceStatus] || s.sourceStatus || 'In Storage';
+    return s.status || '—';
+  };
+  const catLabel = (c) => ({'sealed':'🔒 Sealed','unsealed':'🧪 Unsealed','apparatus':'⚙️ IA'}[c]) || c;
+
+  // Build groups keyed by licence number
+  const groups = {};
+  S.sources.forEach(s => {
+    if (cat !== 'all' && s.category !== cat) return;
+    if (q) {
+      const hay = ((s.sourceName || '') + ' ' + (s.equipmentDescription || '') + ' ' + (s.licenceNumber || '') + ' ' + (s.custodian || '') + ' ' + deptOf(s) + ' ' + (s.location || '') + ' ' + (s.serialNumber || '')).toLowerCase();
+      if (!hay.includes(q)) return;
+    }
+    const ln = s.licenceNumber || '—';
+    (groups[ln] = groups[ln] || []).push(s);
+  });
+  const keys = Object.keys(groups).filter(k => k !== '—').sort();
+  if (groups['—']) keys.push('—');
+
+  let html = '<div class="tb">' +
+    '<input class="sb" id="licenceSearch" placeholder="Search source, licence no., custodian, department…" value="' + esc(S.licenceSearch) + '">' +
+    '<select class="sb" id="licenceCatFilter"><option value="all"' + (cat === 'all' ? ' selected' : '') + '>All Categories</option><option value="sealed"' + (cat === 'sealed' ? ' selected' : '') + '>Sealed Sources</option><option value="unsealed"' + (cat === 'unsealed' ? ' selected' : '') + '>Unsealed Sources</option><option value="apparatus"' + (cat === 'apparatus' ? ' selected' : '') + '>Irradiating Apparatus</option></select>' +
+    '</div>';
+  html += '<h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--txt)">📜 Licences <span class="note">(' + keys.length + ' licences)</span></h3>';
+  if (keys.length === 0) {
+    html += '<div class="empty"><div class="big">📜</div>No licences found for the selected filter.</div>';
+  } else {
+    html += '<div class="tw"><table><thead><tr><th>Licence No.</th><th>Expiry</th><th>Status</th><th>Categories</th><th>Departments</th><th>Items</th><th></th></tr></thead><tbody>' +
+      keys.map(ln => {
+        const items = groups[ln];
+        const exp = items[0].licenceExpiryDate;
+        const expDays = exp ? daysUntil(exp) : null;
+        const expHtml = exp ? fmtDate(exp) + (expDays <= 0 ? ' <span class="bdg b-alert" style="padding:1px 6px;font-size:9px">' + (expDays < 0 ? 'EXPIRED' : 'EXPIRING') + '</span>' : '') : '<span class="note">—</span>';
+        const cats = [...new Set(items.map(s => s.category))];
+        const depts = [...new Set(items.map(s => deptOf(s)))];
+        const expanded = S.licenceDetailId === ln;
+        let row = '<tr class="sel ' + (expanded ? 'hl' : '') + '" data-licdetail="' + esc(ln) + '">' +
+          '<td class="mono" style="font-weight:600">' + esc(ln) + '</td>' +
+          '<td>' + expHtml + '</td>' +
+          '<td>' + esc(statusLabel(items[0])) + '</td>' +
+          '<td>' + cats.map(c => catLabel(c)).join(', ') + '</td>' +
+          '<td>' + depts.map(d => esc(d)).join(', ') + '</td>' +
+          '<td>' + items.length + '</td>' +
+          '<td style="text-align:center">' + (expanded ? '▾' : '▸') + '</td></tr>';
+        if (!expanded) return row;
+        const allHist = items.flatMap(s => (s.licenceHistory || []).map(r => Object.assign({ __source: s.sourceName || s.equipmentDescription }, r)));
+        const sub = '<tr style="background:var(--bg)"><td colspan="7" style="padding:0;border:none;border-bottom:3px solid var(--accent)"><div class="card" style="margin:6px 8px 12px 8px;padding:10px;border-left:4px solid var(--accent)">' +
+          '<h3 style="font-size:12px;margin:0 0 8px"><span class="acc">📦</span> Items under ' + esc(ln) + '</h3>' +
+          '<div class="tw"><table><thead><tr><th>Category</th><th>Source / Apparatus</th><th>Department</th><th>Custodian</th><th>Status</th></tr></thead><tbody>' +
+          items.map(s => '<tr><td>' + catLabel(s.category) + '</td>' +
+            '<td style="font-weight:600">' + esc(s.sourceName || s.equipmentDescription || '—') + '</td>' +
+            '<td>' + esc(deptOf(s)) + '</td>' +
+            '<td>' + esc(s.custodian || '—') + '</td>' +
+            '<td>' + esc(statusLabel(s)) + '</td></tr>').join('') +
+          '</tbody></table></div>' +
+          (allHist.length ? '<h3 style="font-size:12px;margin:12px 0 8px"><span class="acc">📜</span> Licence History</h3>' +
+          '<div class="hist">' + allHist.map(r =>
+            '<div class="hi"><div><b class="mono">' + esc(r.licenceNumber) + '</b> ' + (r.__source ? '<span class="note">(' + esc(r.__source) + ')</span>' : '') + '<br><span class="note">' + fmtDate(r.changedDate) + ' by ' + esc(r.changedBy) + (r.notes ? ' — ' + esc(r.notes) : '') + '</span></div></div>').join('') + '</div>' : '') +
+          '</div></td></tr>';
+        return row + sub;
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  document.getElementById('mainContent').innerHTML = html;
+  const srch = document.getElementById('licenceSearch');
+  if (srch) srch.oninput = (e) => { S.licenceSearch = e.target.value; renderLicences(); };
+  const filt = document.getElementById('licenceCatFilter');
+  if (filt) filt.onchange = (e) => { S.licenceCatFilter = e.target.value; renderLicences(); };
+}
+
+function renderPersonnel() {
+  const q = (S.personnelSearch || '').toLowerCase().trim();
+  const deptFilter = S.personnelDept || '';
+  const depts = [...new Set([...S.locations.map(l => l.department), ...S.ruas.map(u => u.department), ...S.persons.map(p => p.department)])].filter(Boolean).sort();
+
+  let html = '<div class="tb">' +
+    '<input class="sb" id="personnelSearch" placeholder="Search person, room, department…" value="' + esc(S.personnelSearch || '') + '">' +
+    '<select class="sb" id="personnelDept"><option value="">All Departments</option>' + depts.map(d => '<option ' + (deptFilter === d ? 'selected' : '') + '>' + esc(d) + '</option>').join('') + '</select>' +
+    '</div>';
+  html += '<h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--txt)">👥 Personnel &amp; Room Relationships</h3>';
+
+  const filteredDepts = deptFilter ? depts.filter(d => d === deptFilter) : depts;
+  if (filteredDepts.length === 0) {
+    html += '<div class="empty"><div class="big">👥</div>No departments found.</div>';
+  }
+
+  filteredDepts.forEach(dept => {
+    if (q && !dept.toLowerCase().includes(q)) {
+      const personMatch = S.persons.some(p => p.department === dept && (p.name + ' ' + p.title + ' ' + p.role).toLowerCase().includes(q));
+      const roomMatch = S.locations.some(l => l.department === dept && (l.spaceID + ' ' + l.building + ' ' + l.roomNumber).toLowerCase().includes(q));
+      if (!personMatch && !roomMatch) return;
+    }
+
+    const deptPersons = S.persons.filter(p => p.department === dept).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const pis = deptPersons.filter(p => p.role === 'PI');
+
+    // Collect all team members (people who appear in any PI's group)
+    const teamMemberNames = new Set();
+    S.ruas.forEach(u => {
+      if (u.department !== dept) return;
+      (u.groups || []).forEach(g => {
+        (g.users || []).forEach(user => {
+          if (user.name) teamMemberNames.add(user.name);
+        });
+      });
+    });
+
+    // Non-PIs who are NOT team members under any PI
+    const nonPis = deptPersons.filter(p => p.role !== 'PI' && !teamMemberNames.has(p.name));
+
+    html += '<div class="card" style="margin-bottom:12px;padding:12px">' +
+      '<h3 style="font-size:13px;margin:0 0 10px"><span class="acc">🏢</span> ' + esc(dept) + ' <span class="note">(' + pis.length + ' PIs · ' + nonPis.length + ' team members)</span></h3>';
+
+    // PIs section
+    if (pis.length) {
+      html += '<div class="section-title" style="margin-top:10px"><span class="acc">👨‍🔬</span> Principal Investigators</div>';
+      pis.forEach(pi => {
+        if (q && !(pi.name + ' ' + (pi.title || '')).toLowerCase().includes(q)) return;
+
+        // Find all RUA groups where this PI is the PI
+        const piGroups = [];
+        S.ruas.forEach(u => {
+          if (u.department !== dept) return;
+          (u.groups || []).forEach(g => {
+            if (g.piName === pi.name) {
+              piGroups.push({ rua: u, group: g });
+            }
+          });
+        });
+
+        const rooms = [...new Set(piGroups.map(pg => pg.rua.spaceID))];
+        const teamMembers = [];
+        piGroups.forEach(pg => {
+          (pg.group.users || []).forEach(user => {
+            if (!teamMembers.some(tm => tm.name === user.name)) {
+              teamMembers.push(user);
+            }
+          });
+        });
+
+        const expanded = S.personnelExpanded === 'pi-' + pi.id;
+        html += '<div class="card" style="margin:8px 0;padding:10px;background:var(--bg)">' +
+          '<div class="sel" data-piexpand="' + pi.id + '" style="cursor:pointer;padding:6px;border-radius:6px">' +
+          '<b>' + esc(pi.name) + '</b> <span class="note">(' + esc(pi.title || '') + ')</span>' +
+          '<span style="float:right">' + (expanded ? '▾' : '▸') + '</span>' +
+          '<div class="note" style="margin-top:4px">' +
+          (rooms.length ? 'Rooms: ' + rooms.map(r => '<span class="mono">' + esc(r) + '</span>').join(', ') : 'No rooms assigned') +
+          ' · ' + teamMembers.length + ' team member' + (teamMembers.length !== 1 ? 's' : '') +
+          '</div></div>';
+
+        if (expanded) {
+          html += '<div style="margin-top:10px;padding:8px;background:var(--card);border-radius:6px;border-left:3px solid var(--accent)">';
+          if (teamMembers.length) {
+            html += '<div class="section-title" style="margin:0 0 6px;font-size:11px">Team Members</div>' +
+              '<div class="tw"><table><thead><tr><th>Name</th><th>Role / Title</th><th>Rooms</th></tr></thead><tbody>';
+            teamMembers.forEach(tm => {
+              const tmRooms = new Set();
+              S.ruas.forEach(u => {
+                if (u.department !== dept) return;
+                (u.groups || []).forEach(g => {
+                  if (g.piName === pi.name && (g.users || []).some(u => u.name === tm.name)) {
+                    tmRooms.add(u.spaceID);
+                  }
+                });
+              });
+              const person = S.persons.find(p => p.name === tm.name);
+              const title = person ? (person.title || '') : (tm.title || '');
+              const role = person ? (person.role || '—') : (tm.role || '—');
+              const displayRole = title ? title + ' (' + role + ')' : role;
+              html += '<tr><td><b>' + esc(tm.name) + '</b></td>' +
+                '<td>' + esc(displayRole) + '</td>' +
+                '<td>' + ([...tmRooms].map(r => '<span class="mono">' + esc(r) + '</span>').join(', ') || '—') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+          } else {
+            html += '<div class="note">No team members assigned</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+    }
+
+    // Non-PI people (team members, staff, etc.)
+    if (nonPis.length) {
+      html += '<div class="section-title" style="margin-top:14px"><span class="acc">👤</span> Other Personnel</div>' +
+        '<div class="tw"><table><thead><tr><th>Name</th><th>Role</th><th>Reports to</th><th>Rooms</th></tr></thead><tbody>';
+      nonPis.forEach(p => {
+        if (q && !(p.name + ' ' + p.title + ' ' + p.role).toLowerCase().includes(q)) return;
+        const reportsTo = new Set();
+        const rooms = new Set();
+        S.ruas.forEach(u => {
+          if (u.department !== dept) return;
+          (u.groups || []).forEach(g => {
+            if ((g.users || []).some(user => user.name === p.name)) {
+              reportsTo.add(g.piName);
+              rooms.add(u.spaceID);
+            }
+          });
+        });
+        S.sources.forEach(s => { if (s.custodian === p.name) rooms.add(s.spaceID || s.location); });
+
+        html += '<tr><td><b>' + esc(p.name) + '</b>' + (p.title ? '<div class="note">' + esc(p.title) + '</div>' : '') + '</td>' +
+          '<td>' + esc(p.role || '—') + '</td>' +
+          '<td>' + (reportsTo.size ? [...reportsTo].map(n => esc(n)).join(', ') : '—') + '</td>' +
+          '<td>' + (rooms.size ? [...rooms].map(r => '<span class="mono">' + esc(r) + '</span>').join(', ') : '—') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '</div>';
+  });
+
+  document.getElementById('mainContent').innerHTML = html;
+  const srch = document.getElementById('personnelSearch');
+  if (srch) srch.oninput = (e) => { S.personnelSearch = e.target.value; renderPersonnel(); };
+  const deptSel = document.getElementById('personnelDept');
+  if (deptSel) deptSel.onchange = (e) => { S.personnelDept = e.target.value; renderPersonnel(); };
+
+  // PI expand handler
+  document.querySelectorAll('[data-piexpand]').forEach(el => {
+    el.onclick = () => {
+      const piId = el.dataset.piexpand;
+      S.personnelExpanded = S.personnelExpanded === 'pi-' + piId ? null : 'pi-' + piId;
+      renderPersonnel();
+    };
+  });
+}
+
 function openDocForm(id) {
   const x = id ? S.docs.find(d => d.id === id) : null;
   const html = '<div class="mback" id="mback"><div class="modal">' +
@@ -4621,6 +4879,7 @@ function openDocForm(id) {
 }
 
 async function deleteDoc(id) {
+  if (!isAdmin()) { toast('🔐 Only the Admin can delete records'); return; }
   const x = S.docs.find(d => d.id === id);
   if (!x) return;
   if (!confirm('Delete correspondence "' + x.subject + '"? This cannot be undone.')) return;
@@ -4650,6 +4909,15 @@ function toggleTheme() {
   try { localStorage.setItem('IRP_THEME', isLightTheme() ? 'light' : 'dark'); } catch (e) {}
   applyThemeUI();
 }
+function populateUserSel() {
+  const sel = document.getElementById('userSel');
+  if (!sel) return;
+  // Only HSEO people can log in
+  const hseoPersons = S.persons.filter(p => p.department === 'HSEO');
+  sel.innerHTML = hseoPersons.map(p => '<option value="' + p.id + '">' + esc(p.name) + ' — ' + esc(p.role || '—') + '</option>').join('');
+  sel.value = S.currentUserId;
+  sel.onchange = () => { S.currentUserId = sel.value; try { localStorage.setItem('IRP_USER', sel.value); } catch (e) {} renderAll(); };
+}
 
 async function init() {
   applyThemeUI();
@@ -4667,6 +4935,9 @@ async function init() {
     S.doseRoster = lsLoad(LS_KEYS.doseRoster, SEED_DOSE_ROSTER);
     S.docs = lsLoad(LS_KEYS.docs, SEED_DOCS);
   }
+  const storedUser = localStorage.getItem('IRP_USER');
+  S.currentUserId = (storedUser && S.persons.some(p => p.id === storedUser)) ? storedUser : ((S.persons.find(p => p.role === 'Admin') || S.persons[0] || {}).id);
+  populateUserSel();
   const pill = document.getElementById('syncPill');
   if (isSPMode && spLoaded) {
     pill.classList.remove('local'); pill.classList.add('sp');
