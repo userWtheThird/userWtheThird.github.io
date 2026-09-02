@@ -4336,7 +4336,7 @@ function renderAll() {
 }
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wundo], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licdetail], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], [data-xsprint], [data-chk], #invAdd, #invAdd2, #invExport, #invImport, #invRenewLicence, #batchVerify, #batchLicence, #batchClear, #selAll, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
+  const t = e.target.closest('[data-tab], [data-cat], [data-open], [data-rua], [data-close], [data-act], [data-wdel], [data-wdisp], [data-wundo], [data-wview], [data-wpdf], [data-go], [data-red], [data-rdel], [data-dedit], [data-ddel], [data-invgo], [data-invsort], [data-wsort], [data-wdispmonth], [data-msec], [data-doctoggle], [data-toggle], [data-licdetail], [data-licitem], [data-licfilter], [data-licfile], [data-licfolder], [data-wpreset], [data-swprint], [data-adalprint], [data-xsprint], [data-chk], #invAdd, #invAdd2, #invExport, #invImport, #invRenewLicence, #batchVerify, #batchLicence, #batchClear, #selAll, #ruaAdd, #dSubmit, #rosterAdd, #rosterToggle, #docsAdd, #qtrPrint, #sumPrint, #wasteAdd, #wasteCsv');
   if (!t) return;
   // Handle individual checkbox selection
   if (t.dataset.chk) {
@@ -4418,6 +4418,15 @@ document.addEventListener('click', async (e) => {
   if (t.dataset.toggle === 'checkHistory') { S.checkHistoryOpen = !S.checkHistoryOpen; renderInventory(); return; }
   if (t.dataset.toggle === 'licenceHistory') { S.licenceHistoryOpen = !S.licenceHistoryOpen; renderInventory(); return; }
   if (t.dataset.licdetail) { S.licenceDetailId = S.licenceDetailId === t.dataset.licdetail ? null : t.dataset.licdetail; renderLicences(); return; }
+  if (t.dataset.licitem) {
+    const srcId = t.dataset.licitem;
+    S.tab = 'inventory';
+    S.detailId = srcId;
+    S.cat = S.sources.find(s => s.id === srcId)?.category || 'sealed';
+    S.invMenuOpen = false;
+    renderAll();
+    return;
+  }
   if (t.dataset.licfilter) { S.docLicFilter = t.dataset.licfilter; renderDocuments(); return; }
   if (t.dataset.licfile) {
     const url = licFileUrl(t.dataset.licfile);
@@ -4661,7 +4670,7 @@ function renderLicences() {
         const sub = '<tr style="background:var(--bg)"><td colspan="7" style="padding:0;border:none;border-bottom:3px solid var(--accent)"><div class="card" style="margin:6px 8px 12px 8px;padding:10px;border-left:4px solid var(--accent)">' +
           '<h3 style="font-size:12px;margin:0 0 8px"><span class="acc">📦</span> Items under ' + esc(ln) + '</h3>' +
           '<div class="tw"><table><thead><tr><th>Category</th><th>Source / Apparatus</th><th>Department</th><th>Custodian</th><th>Status</th></tr></thead><tbody>' +
-          items.map(s => '<tr><td>' + catLabel(s.category) + '</td>' +
+          items.map(s => '<tr class="sel" data-licitem="' + s.id + '" style="cursor:pointer"><td>' + catLabel(s.category) + '</td>' +
             '<td style="font-weight:600">' + esc(s.sourceName || s.equipmentDescription || '—') + '</td>' +
             '<td>' + esc(deptOf(s)) + '</td>' +
             '<td>' + esc(s.custodian || '—') + '</td>' +
