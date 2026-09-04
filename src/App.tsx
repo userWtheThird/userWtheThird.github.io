@@ -268,7 +268,7 @@ function Contact() {
 
         <div className="flex items-center gap-4">
           <a
-            href="mailto:your-email@example.com"
+            href="mailto:cwmchan@protonmail.com"
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-grey-950 text-sm font-semibold rounded-sm hover:bg-grey-200 transition-colors"
           >
             <Mail size={16} />
@@ -306,7 +306,7 @@ function Footer() {
             <Github size={16} />
           </a>
           <a
-            href="mailto:your-email@example.com"
+            href="mailto:cwmchan@protonmail.com"
             className="text-grey-600 hover:text-grey-300 transition-colors"
           >
             <Mail size={16} />
