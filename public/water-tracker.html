@@ -1,0 +1,3457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Water Sanitation Program</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// ══════════ SHAREPOINT CONFIGURATION ══════════
+// Set this to your SharePoint site URL (e.g., 'https://yourcompany.sharepoint.com/sites/yoursite')
+const SP_SITE_URL = ''; // Leave empty to auto-detect
+const SP_LISTS = {
+  records: 'WSP_Records',
+  locations: 'WSP_Locations',
+  parameters: 'WSP_Parameters',
+  settings: 'WSP_Settings'
+};
+
+// SharePoint REST API helpers
+let isSPMode = false;
+let spContext = null;
+
+async function initSharePoint() {
+  // Auto-detect if running in SharePoint
+  if (SP_SITE_URL || window._spPageContextInfo) {
+    try {
+      spContext = window._spPageContextInfo || { webAbsoluteUrl: SP_SITE_URL };
+      isSPMode = true;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  return false;
+}
+
+async function spGetListItems(listName) {
+  if (!isSPMode) return null;
+  const url = `${spContext.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/items?$top=5000`;
+  const resp = await fetch(url, {
+    headers: { 'Accept': 'application/json;odata=verbose' },
+    credentials: 'include'
+  });
+  if (!resp.ok) throw new Error(`Failed to get ${listName}: ${resp.statusText}`);
+  const data = await resp.json();
+  return data.d.results;
+}
+
+async function spCreateListItem(listName, item) {
+  if (!isSPMode) return null;
+  const url = `${spContext.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/items`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose',
+      'X-RequestDigest': await spGetDigest()
+    },
+    credentials: 'include',
+    body: JSON.stringify(item)
+  });
+  if (!resp.ok) throw new Error(`Failed to create item: ${resp.statusText}`);
+  return await resp.json();
+}
+
+async function spUpdateListItem(listName, itemId, item) {
+  if (!isSPMode) return null;
+  const url = `${spContext.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/items(${itemId})`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose',
+      'X-RequestDigest': await spGetDigest(),
+      'IF-MATCH': '*',
+      'X-HTTP-Method': 'MERGE'
+    },
+    credentials: 'include',
+    body: JSON.stringify(item)
+  });
+  if (!resp.ok) throw new Error(`Failed to update item: ${resp.statusText}`);
+  return await resp.json();
+}
+
+async function spDeleteListItem(listName, itemId) {
+  if (!isSPMode) return null;
+  const url = `${spContext.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/items(${itemId})`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'X-RequestDigest': await spGetDigest(),
+      'IF-MATCH': '*',
+      'X-HTTP-Method': 'DELETE'
+    },
+    credentials: 'include'
+  });
+  if (!resp.ok) throw new Error(`Failed to delete item: ${resp.statusText}`);
+}
+
+let _spDigest = null;
+let _spDigestExpiry = 0;
+
+async function spGetDigest() {
+  const now = Date.now();
+  if (_spDigest && now < _spDigestExpiry) return _spDigest;
+  const resp = await fetch(`${spContext.webAbsoluteUrl}/_api/contextinfo`, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json;odata=verbose' },
+    credentials: 'include'
+  });
+  const data = await resp.json();
+  _spDigest = data.d.GetContextWebInformation.FormDigestValue;
+  _spDigestExpiry = now + 25 * 60 * 1000; // Cache for 25 min (SP digest valid ~30 min)
+  return _spDigest;
+}
+
+// Debug function - call from browser console: debugSP()
+function debugSP() {
+  console.log('=== SharePoint Debug Info ===');
+  console.log('isSPMode:', isSPMode);
+  console.log('spContext:', spContext);
+  console.log('SP_SITE_URL:', SP_SITE_URL);
+  console.log('SP_LISTS:', SP_LISTS);
+  console.log('_spPageContextInfo:', window._spPageContextInfo);
+  console.log('Records count:', S.recs.length);
+  console.log('Locations count:', S.locs.length);
+  console.log('Custom Params count:', S.customParams.length);
+  console.log('===========================');
+  return { isSPMode, spContext, recs: S.recs.length, locs: S.locs.length };
+}
+</script>
+<style>
+/* ══════════ LIGHT THEME (default) ══════════ */
+:root{
+  --pri:#1e3a5f;--pri-d:#0f2440;--pri-l:#e8eef6;
+  --bg:#f8fafc;--card:#fff;--txt:#1e293b;--txt2:#64748b;--brd:#e2e8f0;
+  --red:#dc2626;--grn:#16a34a;--orn:#d97706;
+  --r:10px;--sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --hdr-bg:linear-gradient(135deg,#0f2440,#1e3a5f);
+  --hdr-pill:rgba(255,255,255,.15);
+  --row-alt:#f1f5f9;--input-bg:#fff;
+}
+/* ══════════ DARK THEME ══════════ */
+[data-theme="dark"]{
+  --pri:#38bdf8;--pri-d:#0ea5e9;--pri-l:rgba(56,189,248,.12);
+  --bg:#0f172a;--card:#1e293b;--txt:#f1f5f9;--txt2:#94a3b8;--brd:#334155;
+  --red:#f87171;--grn:#4ade80;--orn:#fbbf24;
+  --sh:none;
+  --hdr-bg:linear-gradient(135deg,#020617,#0f172a);
+  --hdr-pill:rgba(255,255,255,.08);
+  --row-alt:#162032;--input-bg:#0f172a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:12px;transition:background .25s,color .25s}
+.hdr{background:var(--hdr-bg);color:#fff;padding:8px 16px;display:flex;align-items:center;gap:10px}
+.hdr svg{width:20px;height:20px;fill:rgba(255,255,255,.85)}
+.hdr h1{font-size:14px;font-weight:600;letter-spacing:-.01em;display:inline}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.6);margin-left:6px;display:inline}
+.hdr-back{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--hdr-pill);border:none;cursor:pointer;color:#fff;font-size:14px;transition:background .2s;text-decoration:none}
+.hdr-back:hover{background:rgba(255,255,255,.22)}
+.hdr-pill{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:16px;background:var(--hdr-pill);cursor:pointer;color:#fff;border:none;transition:background .2s}
+.hdr-pill:hover{background:rgba(255,255,255,.22)}
+[data-theme="dark"] .hdr-pill:hover{background:rgba(255,255,255,.14)}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--hdr-pill);border:none;cursor:pointer;color:#fff;font-size:13px;transition:background .2s}
+.theme-toggle:hover{background:rgba(255,255,255,.22)}
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--brd);padding:0 12px;overflow-x:auto}
+.tab{padding:7px 14px;cursor:pointer;border:none;background:none;font-size:12px;color:var(--txt2);border-bottom:2px solid transparent;white-space:nowrap;transition:.2s}
+.tab:hover{color:var(--pri);background:var(--pri-l)}
+.tab.active{color:var(--pri);border-bottom-color:var(--pri);font-weight:600}
+.ctn{max-width:1200px;margin:0 auto;padding:14px}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--brd);padding:14px;margin-bottom:12px;transition:background .25s}
+.card h2{font-size:14px;margin-bottom:8px;letter-spacing:-.01em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--brd);padding:10px 12px;text-align:center;transition:background .25s}
+.stat .n{font-size:22px;font-weight:700;color:var(--pri);letter-spacing:-.02em}
+.stat .l{font-size:10px;color:var(--txt2);margin-top:1px;text-transform:uppercase;letter-spacing:.04em}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fi{display:flex;flex-direction:column}
+.fi.f{grid-column:1/-1}
+.fi label{font-size:11px;font-weight:600;margin-bottom:2px;color:var(--txt2)}
+.fi input,.fi select,.fi textarea{padding:5px 8px;border:1px solid var(--brd);border-radius:var(--r);font-size:12px;font-family:inherit;background:var(--input-bg);color:var(--txt);transition:border-color .2s,box-shadow .2s}
+.fi input:focus,.fi select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-l)}
+.limit-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+.limit-grid label{font-size:11px;font-weight:400;display:flex;align-items:center;gap:4px;background:var(--pri-l);padding:3px 6px;border-radius:var(--r);color:var(--txt)}
+.limit-grid input{width:90px;padding:3px 6px}
+.btn{padding:5px 12px;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:4px}
+.btn-p{background:var(--pri);color:#fff}.btn-p:hover{background:var(--pri-d)}
+.btn-g{background:var(--grn);color:#fff}.btn-g:hover{filter:brightness(.9)}
+.btn-r{background:var(--red);color:#fff}.btn-r:hover{filter:brightness(.9)}
+.btn-o{background:none;border:1px solid var(--brd);color:var(--txt)}.btn-o:hover{background:var(--bg)}
+.btn-s{padding:3px 8px;font-size:10px}
+.bg{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.tb{display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap}
+.sb{flex:1;min-width:160px;padding:5px 8px;border:1px solid var(--brd);border-radius:var(--r);font-size:12px;background:var(--input-bg);color:var(--txt)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{background:var(--bg);padding:6px 8px;text-align:left;font-weight:600;color:var(--txt2);border-bottom:2px solid var(--brd);white-space:nowrap;position:sticky;top:0;font-size:10px;text-transform:uppercase;letter-spacing:.03em}
+td{padding:4px 8px;border-bottom:1px solid var(--brd)}
+tr:hover{background:var(--row-alt)}
+.tw{overflow-x:auto;max-height:500px;border:1px solid var(--brd);border-radius:var(--r)}
+.emp{text-align:center;padding:20px;color:var(--txt2)}
+.badge{display:inline-block;padding:2px 6px;border-radius:12px;font-size:10px;font-weight:600}
+.b-pass{background:rgba(22,163,74,.12);color:var(--grn)}
+.b-fail{background:rgba(220,38,38,.1);color:var(--red)}
+.b-pend{background:rgba(217,119,6,.12);color:var(--orn)}
+.st-active{background:rgba(22,163,74,.1);color:var(--grn)}
+.st-outoforder{background:rgba(217,119,6,.1);color:var(--orn)}
+.st-renovating{background:rgba(30,58,95,.1);color:var(--pri)}
+.st-inactive{background:rgba(100,116,139,.1);color:var(--txt2)}
+[data-theme="dark"] .st-renovating{background:rgba(56,189,248,.1)}
+.st-sel{padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:10px;font-weight:600;background:var(--card);cursor:pointer;color:var(--txt)}
+.st-sel:focus{outline:2px solid var(--pri);outline-offset:-1px}
+.loc-row-ooo td{background:rgba(217,119,6,.06)!important}
+.loc-row-renovating td{background:rgba(30,58,95,.06)!important}
+[data-theme="dark"] .loc-row-renovating td{background:rgba(56,189,248,.06)!important}
+.loc-row-inactive td{background:var(--row-alt)!important;opacity:.55}
+.pr{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:3px 0;border-bottom:1px solid var(--brd)}
+.pr.off{opacity:.45}
+.pr input[type="checkbox"]{accent-color:var(--pri);cursor:pointer;width:14px;height:14px;flex-shrink:0}
+.pr .pn{font-size:11px;font-weight:600;min-width:90px}
+.pr .pl{font-size:9px;color:var(--txt2)}
+.pr input[type="number"]{padding:3px 5px;border:1px solid var(--brd);border-radius:var(--r);font-size:12px;width:70px;background:var(--input-bg);color:var(--txt)}
+.pr .pu{font-size:10px;color:var(--txt2)}
+.pr .brl{font-size:9px;color:var(--grn);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.pr .brl input{accent-color:var(--grn);cursor:pointer;width:12px;height:12px}
+.brl-badge{display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(22,163,74,.12);color:var(--grn)}
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000}
+.md{background:var(--card);border-radius:var(--r);box-shadow:0 8px 32px rgba(0,0,0,.2);padding:16px;max-width:520px;width:92%;max-height:80vh;overflow-y:auto;border:1px solid var(--brd)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.dg .ff{margin-bottom:4px}
+.dg .fl{font-size:10px;color:var(--txt2);font-weight:600}
+.dg .fv{font-size:12px;margin-top:1px}
+.dp{margin-top:10px}
+.dp table{width:100%}
+.dp th,.dp td{padding:4px 6px;font-size:11px}
+.hid{display:none!important}
+.tst{position:fixed;bottom:16px;right:16px;padding:8px 14px;border-radius:var(--r);color:#fff;font-size:12px;font-weight:600;z-index:2000;animation:si .3s ease}
+.tst-s{background:var(--grn)}.tst-e{background:var(--red)}
+@keyframes si{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.section-box{padding:8px;background:var(--bg);border-radius:var(--r);border:1px solid var(--brd)}
+@media(max-width:768px){.fg{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.dg{grid-template-columns:1fr}.pr{flex-wrap:wrap}}
+.sp-box{border:1px solid var(--brd);border-radius:var(--r);max-height:200px;overflow-y:auto;padding:4px}
+.sp-item{display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:3px;cursor:pointer;font-size:11px;transition:.15s}
+.sp-item:hover{background:var(--pri-l)}
+.sp-item input{accent-color:var(--pri);cursor:pointer}
+.sp-item .sp-bld{font-size:9px;color:var(--txt2);margin-left:auto}
+.sp-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sp-hdr label{font-size:11px;font-weight:600;color:var(--txt2)}
+.sp-btns{display:flex;gap:3px}
+.sp-btns button{font-size:9px;padding:2px 6px;border:1px solid var(--brd);border-radius:3px;background:var(--card);cursor:pointer;color:var(--pri)}
+.sp-btns button:hover{background:var(--pri-l)}
+.sp-cnt{font-size:10px;color:var(--pri);font-weight:600}
+</style>
+<script>
+// Apply saved theme before render to prevent flash
+(function(){var t=localStorage.getItem('wsp-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})();
+</script>
+</head>
+<body>
+<div class="hdr">
+<a class="hdr-back" href="launcher.html" title="Back to HSEO Programs">←</a>
+<svg viewBox="0 0 24 24"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2C20 10.48 17.33 6.55 12 2zm0 18c-3.35 0-6-2.57-6-6.2 0-2.34 1.95-5.44 6-9.14 4.05 3.7 6 6.79 6 9.14 0 3.63-2.65 6.2-6 6.2z"/></svg>
+<h1>HSEO Programs</h1><span class="hdr-sub">Water Sanitation Program</span>
+<div id="top-sync-bar" class="hdr-pill" style="margin-left:auto" onclick="quickSyncSetup()">
+<span id="top-sync-icon">📁</span>
+<span id="top-sync-text">Setup Sync</span>
+</div>
+<div id="admin-btn" class="hdr-pill" onclick="toggleAdmin()">
+<span id="admin-icon">🔒</span>
+<span id="admin-text">Admin</span>
+</div>
+<button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle dark mode">☀️</button>
+</div>
+<div class="tabs">
+<button class="tab active" onclick="showTab('dash')">Dashboard</button>
+<button class="tab" onclick="showTab('sched')">Schedule</button>
+<button class="tab" onclick="showTab('add')">Add Record</button>
+<button class="tab" onclick="showTab('rec')">Records</button>
+<button class="tab" onclick="showTab('loc')">Locations</button>
+<button class="tab" onclick="showTab('param')">Parameters</button>
+<button class="tab" onclick="showTab('io')">Import / Export</button>
+</div>
+<div class="ctn">
+<!-- DASHBOARD -->
+<div id="t-dash">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+<label style="font-weight:600;font-size:11px">Period:</label>
+<select id="dash-period" onchange="renderDash()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--brd);font-size:11px">
+<option value="month">This Month</option>
+<option value="year">This Year</option>
+<option value="all">All Time</option>
+</select>
+<select id="dash-month" onchange="renderDash()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--brd);font-size:11px"></select>
+<select id="dash-year" onchange="renderDash()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--brd);font-size:11px"></select>
+<label style="font-weight:600;font-size:11px;margin-left:8px">Result:</label>
+<select id="dash-result" onchange="renderDash()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--brd);font-size:11px">
+<option value="all">All Results</option>
+<option value="pass">Pass</option>
+<option value="fail">Fail</option>
+</select>
+</div>
+<div class="stats">
+<div class="stat"><div class="n" id="s-tot">0</div><div class="l">Total Samples</div></div>
+<div class="stat"><div class="n" id="s-pass" style="color:var(--grn)">0</div><div class="l">Passed</div></div>
+<div class="stat"><div class="n" id="s-fail" style="color:var(--red)">0</div><div class="l">Failed</div></div>
+<div class="stat"><div class="n" id="s-retest" style="color:var(--orn)">0</div><div class="l">Re-tested</div></div>
+<div class="stat"><div class="n" id="s-pts">0</div><div class="l">Sampling Points</div></div>
+</div>
+<div class="card"><h2 id="recent-title">Recent Samples</h2><div id="recent"></div></div>
+</div>
+<!-- SCHEDULE -->
+<div id="t-sched" class="hid">
+<div class="stats">
+<div class="stat"><div class="n" id="sc-over" style="color:var(--red)">0</div><div class="l">Overdue</div></div>
+<div class="stat"><div class="n" id="sc-this" style="color:var(--orn)">0</div><div class="l">This Month</div></div>
+<div class="stat"><div class="n" id="sc-next" style="color:var(--pri)">0</div><div class="l">Next Month</div></div>
+<div class="stat"><div class="n" id="sc-fut" style="color:var(--grn)">0</div><div class="l">Future</div></div>
+</div>
+<div class="card">
+<h2 id="sched-title">Sampling Schedule</h2>
+<div class="tb">
+<button class="btn btn-s btn-r" id="sf-over" onclick="schedFilter('over')">Overdue</button>
+<button class="btn btn-s" id="sf-this" style="background:var(--orn);color:#fff" onclick="schedFilter('this')">This Month</button>
+<button class="btn btn-s" id="sf-next" style="background:var(--pri);color:#fff" onclick="schedFilter('next')">Next Month</button>
+<input type="month" id="sched-month" class="sb" style="flex:.22;min-width:150px" title="Choose a month to view its schedule" onchange="schedPickMonth(this.value)">
+<select class="sb" id="sc-fwt" style="flex:.3;min-width:130px" onchange="renderSched()"><option value="">All Types</option></select>
+<select class="sb" id="sc-fbld" style="flex:.3;min-width:120px" onchange="renderSched()"><option value="">All Bldg/Cats</option></select>
+<button class="btn btn-o" onclick="expSchedViewCsv()">Export CSV</button>
+<button class="btn btn-o" onclick="printSched()">Print</button>
+</div>
+<div id="sched-tbl"></div>
+</div>
+</div>
+<!-- ADD RECORD -->
+<div id="t-add" class="hid">
+<div class="card">
+<h2 id="form-title">New Sampling Record</h2>
+<form id="rf" onsubmit="saveRec(event)">
+<input type="hidden" id="rec-edit-id" value="">
+<div class="fg">
+<div class="fi"><label>Water Type *</label><select id="f-wt" name="wt" required onchange="onWtChange()"><option value="">-- Select --</option></select></div>
+<div class="fi"><label>Sampling Point(s) *</label>
+<div class="sp-hdr"><span class="sp-cnt" id="sp-cnt">0 selected</span><div class="sp-btns"><button type="button" onclick="selAllSp()">All</button><button type="button" onclick="clrAllSp()">Clear</button></div></div>
+<div style="display:flex;align-items:center;gap:3px;margin:3px 0">
+  <input class="sb" id="sp-srch" placeholder="Search point, area, or bldg/cat..." oninput="filterSpList()" style="flex:1">
+  <button type="button" onclick="clearSpSrch()" style="font-size:12px;padding:2px 6px;line-height:1" title="Clear search">×</button>
+</div>
+<div class="sp-box" id="sp-list"><p style="font-size:11px;color:var(--txt2);padding:6px">Select water type first</p></div>
+</div>
+<div class="fi"><label>Sampling Date *</label><input name="dt" type="date" required></div>
+<div class="fi"><label>Sampling Type</label><select name="st"><option>Scheduled</option><option>Re-sampling</option><option>Investigation</option><option>One-time</option></select></div>
+<div class="fi"><label>Report Number</label><input name="rn" placeholder="e.g. 5001"></div>
+<div class="fi"><label>Upload Report</label><input type="file" name="reportFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="font-size:12px"><div id="report-preview" style="font-size:11px;color:var(--txt2);margin-top:4px"></div><button type="button" id="clear-report-btn" onclick="clearReportFile()" style="display:none;font-size:11px;padding:2px 8px;margin-top:4px;background:var(--bg);border:1px solid var(--brd);border-radius:var(--r);cursor:pointer;color:var(--red)">✕ Remove file</button></div>
+<div class="fi"><label>Status</label><select name="sts"><option>Pass</option><option>Failed - Re-sampling Required</option></select></div>
+<div class="fi f"><label>Corrective Action</label><input name="ca" placeholder="Describe corrective action if any"></div>
+<div class="fi f"><label>Remarks</label><textarea name="rmk" rows="2" placeholder="General remarks..."></textarea></div>
+</div>
+<div style="margin-top:12px">
+<h3 style="font-size:13px;margin-bottom:6px">Test Results <span id="limit-hint" style="font-weight:400;color:var(--txt2);font-size:10px"></span></h3>
+<p style="font-size:10px;color:var(--txt2);margin-bottom:6px">Fill in only the parameters that were tested. Leave blank for those not included in this sampling event.</p>
+<div id="p-inputs"></div>
+</div>
+<div class="bg">
+<button type="submit" class="btn btn-p">Save Record</button>
+<button type="button" class="btn btn-o" onclick="resetForm()">Clear</button>
+</div>
+</form>
+</div>
+</div>
+<!-- RECORDS -->
+<div id="t-rec" class="hid">
+<div class="card">
+<div class="tb">
+<input class="sb" id="srch" placeholder="Search records..." oninput="renderRec()">
+<select class="sb" id="flt-wt" style="flex:.4;min-width:130px" onchange="renderRec()"><option value="">All Types</option></select>
+<select class="sb" id="flt-bld" style="flex:.4;min-width:120px" onchange="renderRec()"><option value="">All Bldg/Cats</option></select>
+<select class="sb" id="flt-res" style="flex:.3;min-width:100px" onchange="renderRec()"><option value="">All Results</option><option value="Pass">Pass</option><option value="Fail">Fail</option></select>
+</div>
+<div id="rec-tbl"></div>
+</div>
+</div>
+<!-- LOCATIONS -->
+<div id="t-loc" class="hid">
+<div class="card" style="padding:10px 14px">
+<div style="display:flex;align-items:center;gap:8px">
+<button class="btn btn-p" id="loc-add-btn" onclick="toggleLocForm()">+ Add Sampling Point</button>
+</div>
+<div id="loc-add-form" class="hid" style="margin-top:10px">
+<h2 id="loc-form-title">Add New Sampling Point</h2>
+<form id="loc-form" onsubmit="addLoc(event)">
+<input type="hidden" id="loc-edit-id" value="">
+<div class="fg">
+<div class="fi" style="margin-top:8px"><label>Point ID *</label><input name="lid" id="loc-lid" required placeholder="e.g. UG06-1F"></div>
+<div class="fi"><label>Display Name *</label><input name="ln" required placeholder="e.g. UG06 1F Pantry"></div>
+<div class="fi"><label>Water Type *</label><select name="lwt" required id="loc-wt"></select></div>
+<div class="fi"><label>Bldg/Cat *</label><input name="lbld" required placeholder="e.g. UG06"></div>
+<div class="fi"><label>Area</label><input name="larea" placeholder="e.g. Pantry, Kitchen Sink, Female Shower 1, Deep side, Water dispenser, etc"></div>
+<div class="fi"><label>Area Link (URL)</label><input name="lareaLink" placeholder="https://... (optional)"></div>
+<div class="fi"><label>Sampling Frequency</label><select name="lfreq" id="loc-freq"><option value="">Default (from water type)</option><option value="W">Weekly</option><option value="M">Monthly</option><option value="Q">Quarterly</option><option value="Y">Annually</option><option value="N">Nil (one-off only)</option></select></div>
+</div>
+<div class="fi" style="margin-top:8px"><label>Sample Months (leave empty for all months)</label>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+<label style="font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lmonths-all" onchange="toggleAllMonths(this.checked)"> Select All</label>
+<label style="font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="loneoff" onchange="toggleOneOff()"> One-off (sample once, no recurring schedule)</label>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:3px" id="lmonths-container">
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="1" onchange="updateMonthsAllState()"> Jan</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="2" onchange="updateMonthsAllState()"> Feb</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="3" onchange="updateMonthsAllState()"> Mar</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="4" onchange="updateMonthsAllState()"> Apr</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="5" onchange="updateMonthsAllState()"> May</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="6" onchange="updateMonthsAllState()"> Jun</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="7" onchange="updateMonthsAllState()"> Jul</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="8" onchange="updateMonthsAllState()"> Aug</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="9" onchange="updateMonthsAllState()"> Sep</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="10" onchange="updateMonthsAllState()"> Oct</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="11" onchange="updateMonthsAllState()"> Nov</label>
+<label style="font-size:11px;font-weight:400;display:flex;align-items:center;gap:2px"><input type="checkbox" name="lmonths" value="12" onchange="updateMonthsAllState()"> Dec</label>
+</div>
+</div>
+<div class="bg"><button type="submit" class="btn btn-p" id="loc-submit-btn">Add Location</button><button type="button" class="btn btn-o" onclick="toggleLocForm()">Cancel</button></div>
+</form>
+</div>
+</div>
+<div class="card">
+<h2>All Sampling Points <span id="loc-cnt" style="font-size:12px;font-weight:400;color:var(--txt2)"></span></h2>
+<div class="tb">
+<input class="sb" id="loc-srch" placeholder="Search locations..." oninput="renderLoc()">
+<select class="sb" id="loc-fwt" style="flex:.3;min-width:130px" onchange="renderLoc()"><option value="">All Types</option></select>
+<select class="sb" id="loc-fbld" style="flex:.3;min-width:120px" onchange="renderLoc()"><option value="">All Bldg/Cats</option></select>
+<select class="sb" id="loc-fst" style="flex:.3;min-width:130px" onchange="renderLoc()"><option value="">All Statuses</option><option value="active">Active</option><option value="outoforder">Out of Order</option><option value="renovating">Renovating</option><option value="inactive">Inactive</option></select>
+<label style="font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" id="loc-show-inactive" onchange="renderLoc()"> Show inactive</label>
+</div>
+<div style="margin:6px 0;padding:6px 10px;background:var(--bg);border-radius:var(--r);font-size:10px;color:var(--txt2)">
+<strong>Status Legend:</strong>
+<span style="margin-left:8px">🟢 <strong>Active</strong> – Operational</span>
+<span style="margin-left:8px">🔴 <strong>Out of Order</strong> – Under repair</span>
+<span style="margin-left:8px">🟡 <strong>Renovating</strong> – Nearby area under renovation, not accessible</span>
+<span style="margin-left:8px"> <strong>Inactive</strong> – Completely removed</span>
+</div>
+<div id="loc-tbl"></div>
+</div>
+</div>
+<!-- PARAMETERS -->
+<div id="t-param" class="hid">
+<div class="card" style="padding:10px 14px">
+<div style="display:flex;align-items:center;gap:8px">
+<button class="btn btn-p" id="param-add-btn" onclick="toggleParamForm()">+ Add Parameter</button>
+</div>
+<div id="param-add-form" class="hid" style="margin-top:10px">
+<h2 id="param-form-title">Add New Parameter</h2>
+<form id="param-form" onsubmit="saveParam(event)">
+<input type="hidden" id="pf-edit-id" value="">
+<div class="fg">
+<div class="fi"><label>Parameter ID *</label><input name="pid" id="pf-id" required placeholder="e.g. CHLORINE"></div>
+<div class="fi"><label>Display Name *</label><input name="pn" id="pf-name" required placeholder="e.g. Chlorine"></div>
+<div class="fi"><label>Category</label><select name="pc" id="pf-cat"><option value="Physical">Physical</option><option value="Microbiological">Microbiological</option><option value="Specific Pathogen">Specific Pathogen</option><option value="Inorganic">Inorganic</option><option value="Metals">Metals</option><option value="Chemical">Chemical</option><option value="Other">Other</option></select></div>
+<div class="fi"><label>Unit *</label><input name="pu" id="pf-unit" required placeholder="e.g. mg/L"></div>
+<div class="fi"><label>Reporting Level</label><input name="prl" id="pf-rl" type="number" step="any" min="0" placeholder="e.g. 0.5"></div>
+<div class="fi"><label>Reference Level / Range</label><input name="pref" id="pf-ref" placeholder="e.g. 6.5-8.5 or 500"></div>
+<div class="fi"><label>Value Type</label><select name="pvt" id="pf-vt"><option value="n">Decimal</option><option value="i">Integer</option><option value="dn">Detected / Not Detected</option></select></div>
+</div>
+<div class="fi"><label>Limits by Water Type</label><div id="pf-limits" class="limit-grid"></div></div>
+<div class="bg"><button type="submit" class="btn btn-p" id="pf-submit">Add Parameter</button><button type="button" class="btn btn-o" onclick="toggleParamForm()">Cancel</button></div>
+</form>
+</div>
+</div>
+<!-- PRESET SETS -->
+<div class="card" style="padding:10px 14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+<h2 style="margin:0">Preset Sets</h2>
+<button class="btn btn-p btn-s" id="preset-add-btn" onclick="togglePresetForm()">+ Add Preset</button>
+</div>
+<div id="preset-add-form" class="hid" style="margin-bottom:10px">
+<h2 id="preset-form-title">Add Preset Set</h2>
+<form id="preset-form" onsubmit="savePreset(event)">
+<input type="hidden" id="preset-edit-idx" value="">
+<div class="fg">
+<div class="fi"><label>Preset Name *</label><input name="pname" id="preset-name" required placeholder="e.g. Basic Microbiological"></div>
+</div>
+<div class="fi"><label>Parameters *</label>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+<label style="font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="preset-params-all" onchange="document.querySelectorAll('[name=pp]').forEach(c=>c.checked=this.checked)"> Select All</label>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px;background:var(--bg);border-radius:6px;max-height:200px;overflow-y:auto" id="preset-params-container"></div>
+</div>
+<div class="bg"><button type="submit" class="btn btn-p">Save Preset</button><button type="button" class="btn btn-o" onclick="togglePresetForm()">Cancel</button></div>
+</form>
+</div>
+<div id="preset-list"></div>
+</div>
+<div class="card">
+<h2>All Parameters <span id="param-cnt" style="font-size:12px;font-weight:400;color:var(--txt2)"></span></h2>
+<div class="tb">
+<input class="sb" id="param-srch" placeholder="Search parameters..." oninput="renderParam()">
+<select class="sb" id="param-fcat" style="flex:.3;min-width:140px" onchange="renderParam()"><option value="">All Categories</option></select>
+</div>
+<div id="param-tbl"></div>
+</div>
+</div>
+<!-- IMPORT/EXPORT -->
+<div id="t-io" class="hid">
+<!-- FOLDER SYNC -->
+<div class="card">
+<h2>📁 SharePoint Folder Sync</h2>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:8px">Sync data to a SharePoint-synced folder. Your team sees changes automatically.</p>
+<div id="sync-status" style="padding:8px;border-radius:var(--r);margin-bottom:8px;background:var(--bg);font-size:12px">
+<strong>Status:</strong> <span id="sync-status-text">Not connected</span>
+</div>
+<div class="bg">
+<button class="btn btn-p" onclick="setupSync()">Setup Sync Folder</button>
+<button class="btn btn-g" onclick="syncNow()" id="sync-now-btn" disabled>Sync Now (Upload)</button>
+<button class="btn btn-o" onclick="loadFromSync()" id="sync-load-btn" disabled>Load Sync (Download)</button>
+<button class="btn btn-r" onclick="disconnectSync()" id="sync-disc-btn" disabled>Disconnect</button>
+</div>
+<div id="sync-info" class="hid" style="margin-top:8px;padding:8px;background:rgba(22,163,74,.08);border-radius:var(--r);font-size:11px;border:1px solid rgba(22,163,74,.15)">
+<strong>How it works:</strong><br>
+1. Click "Setup Sync Folder" and select your SharePoint-synced folder<br>
+2. Data auto-saves on every change (creates timestamped backups)<br>
+3. Team members see updates when their SharePoint sync refreshes<br>
+4. Each save creates a versioned file for history
+</div>
+</div>
+<div class="card">
+<h2>Records Data</h2>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Export</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Download records as Excel (.xlsx) or CSV. Leave dates empty to export all.</p>
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+<label style="font-size:11px;font-weight:600">From:</label>
+<input type="date" id="exp-from" style="padding:4px;border:1px solid var(--brd);border-radius:4px;font-size:11px">
+<label style="font-size:11px;font-weight:600">To:</label>
+<input type="date" id="exp-to" style="padding:4px;border:1px solid var(--brd);border-radius:4px;font-size:11px">
+<button class="btn btn-o" style="font-size:10px;padding:3px 8px" onclick="document.getElementById('exp-from').value='';document.getElementById('exp-to').value=''">Clear Dates</button>
+</div>
+<div class="bg">
+<button class="btn btn-g" onclick="expXlsx()">Export to Excel (.xlsx)</button>
+<button class="btn btn-o" onclick="expCsv()">Export as CSV</button>
+</div>
+</div>
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Import</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Upload an Excel (.xlsx) or CSV file. New parameters will be auto-detected.</p>
+<input type="file" id="imp-f" accept=".xlsx,.xls,.csv" style="margin-bottom:8px" onchange="prevImp(event)">
+<div id="imp-prev"></div>
+<div id="imp-act" class="bg hid">
+<button class="btn btn-p" onclick="confImp()">Import Records</button>
+<button class="btn btn-o" onclick="cancImp()">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+<div class="card">
+<h2>Locations</h2>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Export</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Download all sampling points with their statuses as Excel (.xlsx) or CSV.</p>
+<div class="bg">
+<button class="btn btn-g" onclick="expLocXlsx()">Export Locations to Excel</button>
+<button class="btn btn-o" onclick="expLocCsv()">Export Locations as CSV</button>
+</div>
+</div>
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Import</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Upload an Excel (.xlsx) or CSV file with sampling point definitions. New points will be added; existing points will have their status updated.</p>
+<input type="file" id="imp-loc-f" accept=".xlsx,.xls,.csv" style="margin-bottom:8px" onchange="prevImpLoc(event)">
+<div id="imp-loc-prev"></div>
+<div id="imp-loc-act" class="bg hid">
+<button class="btn btn-p" onclick="confImpLoc()">Import Locations</button>
+<button class="btn btn-o" onclick="cancImpLoc()">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+<div class="card">
+<h2>Schedule</h2>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Export</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Download schedule settings (frequency and status) for all sampling points as Excel (.xlsx) or CSV.</p>
+<div class="bg">
+<button class="btn btn-g" onclick="expSchedXlsx()">Export Schedule to Excel</button>
+<button class="btn btn-o" onclick="expSchedCsv()">Export Schedule as CSV</button>
+</div>
+</div>
+<div class="section-box">
+<h3 style="margin:0 0 4px;font-size:13px">Import</h3>
+<p style="font-size:11px;color:var(--txt2);margin-bottom:6px">Upload an Excel (.xlsx) or CSV file with schedule settings. Existing settings will be updated.</p>
+<input type="file" id="imp-sched-f" accept=".xlsx,.xls,.csv" style="margin-bottom:8px" onchange="prevImpSched(event)">
+<div id="imp-sched-prev"></div>
+<div id="imp-sched-act" class="bg hid">
+<button class="btn btn-p" onclick="confImpSched()">Import Schedule</button>
+<button class="btn btn-o" onclick="cancImpSched()">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+<div class="card">
+<h2>Data Management</h2>
+<div class="bg">
+<button class="btn btn-o" onclick="backup()">Backup All Data (JSON)</button>
+<button class="btn btn-o" onclick="document.getElementById('rst-f').click()">Restore from Backup</button>
+<input type="file" id="rst-f" accept=".json" class="hid" onchange="restore(event)">
+<button class="btn btn-r" onclick="clearAll()" id="clear-all-btn" style="display:none">Clear All Data</button>
+</div>
+</div>
+</div>
+</div>
+<!-- DETAIL MODAL -->
+<div id="det-mo" class="mo hid" onclick="if(event.target===this)closeDet()">
+<div class="md">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h3 id="det-tt" style="margin:0;font-size:13px">Record Details</h3>
+<div style="display:flex;gap:4px">
+<button id="edit-btn" class="btn btn-o btn-s" onclick="editRec()">Edit</button>
+<button class="btn btn-r btn-s del-btn" style="display:none" onclick="showDelModal('Delete this record?',function(){delRec()})">Delete</button>
+<button class="btn btn-o btn-s" onclick="closeDet()" style="font-size:12px;padding:2px 6px">&times;</button>
+</div>
+</div>
+<div id="det-ct"></div>
+</div>
+</div>
+<!-- Delete Confirmation Modal -->
+<div id="del-modal" class="mo hid" onclick="if(event.target===this)closeDelModal()">
+<div class="md" style="max-width:400px">
+<h3 style="margin:0 0 8px;font-size:13px;color:var(--red)">⚠️ Confirm Delete</h3>
+<p id="del-msg" style="margin:0 0 8px;font-size:11px">Are you sure you want to delete this item?</p>
+<div style="margin-bottom:8px">
+<label style="display:block;font-size:11px;font-weight:600;margin-bottom:3px">Reason for deletion: *</label>
+<textarea id="del-reason" rows="3" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:4px;font-size:11px;resize:vertical" placeholder="Please provide a reason..."></textarea>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+<button class="btn btn-o" onclick="closeDelModal()">Cancel</button>
+<button class="btn btn-r" onclick="confirmDelete()">Delete</button>
+</div>
+</div>
+</div>
+<script>
+// ══════════ DATA ══════════
+const WT={
+DRINKING:{n:'Drinking Fountain',i:1,m:'Annually'},
+SPW:{n:'Swimming Pool',i:2,m:'Weekly'},
+DENTAL:{n:'Dental Water',i:3,m:'Quarterly'},
+FOUNTAIN:{n:'Decorative Fountain',i:4,m:'Monthly'},
+POTABLE:{n:'Potable Water',i:5,m:'Monthly'}
+};
+const SP=[].map(s=>({id:s[0],n:s[1],wt:s[2],bld:s[3],area:s[4]}));
+const PM=[
+{id:'pH',n:'pH',c:'Physical',u:'pH unit',f:'n',rl:0.1,ref:'6.5-8.5'},
+{id:'TURB',n:'Turbidity',c:'Physical',u:'NTU',f:'n',rl:0.2,ref:'0.5'},
+{id:'TEMP',n:'Temperature',c:'Physical',u:'°C',f:'n',rl:0.1,ref:'25'},
+{id:'HPC',n:'HPC',c:'Microbiological',u:'CFU/mL',f:'i',rl:1,ref:'500'},
+{id:'ECOLI',n:'E. coli',c:'Microbiological',u:'CFU/100mL',f:'i',rl:1,ref:'0'},
+{id:'TC',n:'Total Coliform',c:'Microbiological',u:'CFU/100mL',f:'i',rl:1,ref:'0'},
+{id:'LEG',n:'Legionella',c:'Specific Pathogen',u:'CFU/mL',f:'i',rl:10,ref:'10',strict:true},
+{id:'VC',n:'Vibrio cholerae',c:'Specific Pathogen',u:'per 100mL',f:'dn',rl:1,ref:'0'},
+{id:'PB',n:'Lead',c:'Metals',u:'µg/L',f:'n',rl:5,ref:'10'},
+{id:'CU',n:'Copper',c:'Metals',u:'mg/L',f:'n',rl:0.05,ref:'1'},
+{id:'NI',n:'Nickel',c:'Metals',u:'µg/L',f:'n',rl:1,ref:'70'},
+{id:'SB',n:'Antimony',c:'Metals',u:'µg/L',f:'n',rl:2.5,ref:'10'},
+{id:'AS',n:'Arsenic',c:'Metals',u:'µg/L',f:'n',rl:2.5,ref:'10'},
+{id:'CD',n:'Cadmium',c:'Metals',u:'µg/L',f:'n',rl:2.5,ref:'3'},
+{id:'CR',n:'Chromium',c:'Metals',u:'µg/L',f:'n',rl:0.25,ref:'50'},
+{id:'ZN',n:'Zinc',c:'Metals',u:'mg/L',f:'n',rl:0.1,ref:'3'},
+{id:'F',n:'Fluoride',c:'Chemical',u:'mg/L',f:'n',rl:0.2,ref:'1.5'},
+{id:'N',n:'Nitrate',c:'Chemical',u:'mg/L',f:'n',rl:2.2,ref:'10'},
+{id:'S',n:'Sulfate',c:'Chemical',u:'mg/L',f:'n',rl:5,ref:'250'}
+];
+// Limits: LIM[waterType][paramId] = limit string (range "lo-hi" or max "N")
+const LIM={
+DRINKING:{pH:'6.5-8.5',TURB:'0.5',TEMP:'25',HPC:'500',ECOLI:'0',TC:'0',LEG:'10',PB:'10',CU:'1',NI:'70',SB:'10',AS:'10',CD:'3',CR:'50',ZN:'3',F:'1.5',N:'10',S:'250'},
+SPW:{pH:'7.2-7.8',TURB:'5',TEMP:'30',HPC:'200',ECOLI:'0',TC:'0',LEG:'10',VC:'0'},
+DENTAL:{HPC:'200',ECOLI:'0',TC:'0',LEG:'10',PB:'10',CU:'1',F:'1.5',N:'10'},
+FOUNTAIN:{pH:'6.5-9.0',TURB:'0.5',LEG:'10',HPC:'1000'},
+POTABLE:{pH:'6.5-8.5',TURB:'0.5',HPC:'500',ECOLI:'0',TC:'0',PB:'10',CU:'1',F:'1.5',N:'10',S:'250'}
+};
+// ══════════ STATE ══════════
+let S={recs:[],locs:[],editId:null,impData:null,spStatus:{},spFreq:{},customParams:[],customPresets:[],customLims:{},schedView:[]};
+let locSort={col:'id',dir:'asc'}; // Sort state for locations table
+let recSort={col:'date',dir:'desc'}; // Sort state for records table
+let isAdmin=false; // Admin mode for delete operations
+// Password hash (SHA-256) - to change password, run generateHash('newpassword') in browser console
+const ADMIN_HASH='5c9ac9b321c335ce1ffe5e40dbfa38723ac83b3f33dbbaf221a525da037d5e01'; // SHA-256 of default password
+async function hashPassword(pass){
+  const encoder=new TextEncoder();
+  const data=encoder.encode(pass);
+  const hashBuffer=await crypto.subtle.digest('SHA-256',data);
+  const hashArray=Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+// Helper function to generate new password hash (run in browser console)
+window.generateHash=async function(pass){const h=await hashPassword(pass);return h};
+// One-time cleanup: remove duplicate location items from SharePoint, keeping the oldest of each Title
+window.dedupeSPLocations=async function(){
+  if(!isSPMode){console.warn('Not in SharePoint mode');return}
+  const items=await spGetListItems(SP_LISTS.locations);
+  const byTitle={};const dups=[];
+  items.forEach(it=>{
+    if(!byTitle[it.Title])byTitle[it.Title]=it;
+    else dups.push(it);
+  });
+  console.log(`Found ${dups.length} duplicate location items to remove.`);
+  for(const d of dups){
+    try{await fetch(`${spContext.webAbsoluteUrl}/_api/web/lists/getbytitle('${SP_LISTS.locations}')/items(${d.Id})`,{method:'POST',headers:{'X-HTTP-Method':'DELETE','Accept':'application/json;odata=verbose','X-RequestDigest':spContext.formDigestValue},credentials:'include'});console.log(`Deleted duplicate Title=${d.Title} Id=${d.Id}`)}catch(e){console.error(`Failed to delete ${d.Id}:`,e)}
+  }
+  console.log('Done. Refresh the page to reload locations.');
+  return dups.length;
+};
+// One-time backfill: populate the spStatus column on every existing SharePoint location item
+// Uses the app's loaded spStatus map (sparse); defaults to 'active' if missing
+window.backfillSPLocationStatus=async function(){
+  if(!isSPMode){console.warn('Not in SharePoint mode');return}
+  const items=await spGetListItems(SP_LISTS.locations);
+  console.log(`Backfilling spStatus on ${items.length} location items...`);
+  let updated=0,skipped=0;
+  for(const it of items){
+    const desired=S.spStatus[it.Title]||'active';
+    if(it.spStatus===desired){skipped++;continue}
+    try{
+      await spUpdateListItem(SP_LISTS.locations,it.Id,{spStatus:desired});
+      updated++;
+    }catch(e){console.error(`Failed to update ${it.Title} (Id=${it.Id}):`,e)}
+  }
+  console.log(`Done. Updated ${updated}, already correct ${skipped} of ${items.length}.`);
+  return{updated,skipped,total:items.length};
+};
+// One-time cleanup: deduplicate S.locs in the app's in-memory state
+// Keeps the first occurrence of each id, drops the rest. Reports what was removed.
+window.dedupeSLocs=function(){
+  const before=S.locs.length;
+  const seen=new Set();
+  S.locs=S.locs.filter(l=>{
+    if(!l.id){console.warn('Skipping loc with no id:',l);return false}
+    if(seen.has(l.id))return false;
+    seen.add(l.id);
+    return true;
+  });
+  const removed=before-S.locs.length;
+  saveLocs();
+  if(syncEnabled)syncNow();
+  console.log(`Removed ${removed} duplicate loc(s). ${S.locs.length} unique loc(s) remain.`);
+  return{removed,remaining:S.locs.length};
+};
+const LS='wsp_recs';
+const LS_LOC='wsp_locs';
+const LS_ST='wsp_sp_status';
+const LS_FR='wsp_sp_freq';
+const LS_PM='wsp_params';
+const LS_PRESETS='wsp_presets';
+const LS_LIMS='wsp_lims';
+
+// ══════════ FOLDER SYNC STATE ══════════
+let syncFolderHandle = null;
+let syncEnabled = false;
+const SYNC_FILE = 'wsp_data_latest.json';
+const DB_NAME = 'wsp_sync_db';
+const DB_STORE = 'folder_handles';
+const ST_OPTS={active:'Active',outoforder:'Out of Order',renovating:'Renovating',inactive:'Inactive'};
+const FREQ_OPTS={W:{n:'Weekly',d:7},M:{n:'Monthly',d:30},Q:{n:'Quarterly',d:90},Y:{n:'Annually',d:365}};
+
+// Debug function - call from browser console: debugSP()
+function debugSP() {
+  console.log('=== SharePoint Debug Info ===');
+  console.log('isSPMode:', isSPMode);
+  console.log('spContext:', spContext);
+  console.log('SP_SITE_URL:', SP_SITE_URL);
+  console.log('SP_LISTS:', SP_LISTS);
+  console.log('_spPageContextInfo:', window._spPageContextInfo);
+  console.log('Records count:', S.recs.length);
+  console.log('Locations count:', S.locs.length);
+  console.log('Custom Params count:', S.customParams.length);
+  console.log('Sync enabled:', syncEnabled);
+  console.log('===========================');
+  return { isSPMode, spContext, recs: S.recs.length, locs: S.locs.length, syncEnabled };
+}
+
+// ══════════ FOLDER SYNC FUNCTIONS ══════════
+// IndexedDB helpers for storing folder handle
+function openSyncDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      if (!e.target.result.objectStoreNames.contains(DB_STORE)) {
+        e.target.result.createObjectStore(DB_STORE);
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function saveFolderHandle(handle) {
+  try {
+    const db = await openSyncDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(handle, 'syncFolder');
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
+  } catch(e) {
+    console.error('Failed to save folder handle:', e);
+  }
+}
+
+async function loadFolderHandle() {
+  try {
+    const db = await openSyncDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get('syncFolder');
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  } catch(e) {
+    console.error('Failed to load folder handle:', e);
+    return null;
+  }
+}
+
+async function clearFolderHandle() {
+  try {
+    const db = await openSyncDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete('syncFolder');
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
+  } catch(e) {
+    console.error('Failed to clear folder handle:', e);
+  }
+}
+
+async function setupSync() {
+  if (!window.showDirectoryPicker) {
+    toast('Your browser does not support folder access. Use Chrome or Edge.', 'error');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    syncFolderHandle = handle;
+    syncEnabled = true;
+    await saveFolderHandle(handle);
+    updateSyncUI(true, `Connected to: ${handle.name}`);
+    toast('Sync folder connected! Data will auto-save.', 'success');
+    // Do initial save
+    await syncNow();
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      console.error('Setup sync failed:', e);
+      toast('Failed to setup sync: ' + e.message, 'error');
+    }
+  }
+}
+
+function updateSyncUI(connected, statusText) {
+  const statusEl = document.getElementById('sync-status-text');
+  const statusBox = document.getElementById('sync-status');
+  const nowBtn = document.getElementById('sync-now-btn');
+  const loadBtn = document.getElementById('sync-load-btn');
+  const discBtn = document.getElementById('sync-disc-btn');
+  const infoEl = document.getElementById('sync-info');
+  
+  // Top bar elements
+  const topBar = document.getElementById('top-sync-bar');
+  const topIcon = document.getElementById('top-sync-icon');
+  const topText = document.getElementById('top-sync-text');
+  
+  if (connected) {
+    statusEl.textContent = statusText || 'Connected';
+    statusBox.style.background = 'rgba(22,163,74,.08)';
+    statusBox.style.color = 'var(--grn)';
+    nowBtn.disabled = false;
+    loadBtn.disabled = false;
+    discBtn.disabled = false;
+    infoEl.classList.remove('hid');
+    
+    // Update top bar
+    topBar.style.background = 'rgba(255,255,255,0.25)';
+    topIcon.textContent = '✅';
+    topText.textContent = 'Synced';
+  } else {
+    statusEl.textContent = 'Not connected';
+    statusBox.style.background = 'var(--bg)';
+    statusBox.style.color = 'var(--txt)';
+    nowBtn.disabled = true;
+    loadBtn.disabled = true;
+    discBtn.disabled = true;
+    infoEl.classList.add('hid');
+    
+    // Update top bar
+    topBar.style.background = 'rgba(255,200,0,0.3)';
+    topIcon.textContent = '📁';
+    topText.textContent = 'Setup Sync';
+  }
+}
+
+function quickSyncSetup() {
+  if (syncEnabled) {
+    // Already connected - do a quick sync
+    syncNow();
+  } else {
+    // Not connected - go to I/O tab to setup
+    showTab('io');
+  }
+}
+
+async function syncNow() {
+  if (!syncFolderHandle || !syncEnabled) {
+    toast('Sync not connected. Please setup first.', 'error');
+    return;
+  }
+  try {
+    // Verify permission
+    const perm = await syncFolderHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      const reqPerm = await syncFolderHandle.requestPermission({ mode: 'readwrite' });
+      if (reqPerm !== 'granted') {
+        toast('Permission denied for sync folder.', 'error');
+        return;
+      }
+    }
+    
+    // Build data object - include ALL locations and parameters (built-in + custom)
+    const seenIds = new Set();
+    const allLocs = SP.map(sp => {
+      seenIds.add(sp.id);
+      const customLoc = S.locs.find(l => l.id === sp.id);
+      return {
+        id: sp.id,
+        n: sp.n,
+        wt: sp.wt,
+        bld: customLoc?.bld || sp.bld || '',
+        area: customLoc?.area || sp.area || '',
+        areaLink: customLoc?.areaLink || '',
+        freq: getFreq(sp.id),
+        sampleMonths: customLoc?.sampleMonths || [],
+        spStatus: S.spStatus[sp.id] || 'active'
+      };
+    });
+    // Add custom locations not in SP, deduplicating by id
+    S.locs.forEach(l => {
+      if (!SP.find(sp => sp.id === l.id) && !seenIds.has(l.id)) {
+        seenIds.add(l.id);
+        allLocs.push({...l, spStatus: l.spStatus || S.spStatus[l.id] || 'active'});
+      }
+    });
+    // Combine built-in and custom parameters
+    const allParams = [...PM, ...S.customParams];
+
+    // Build complete spStatus map: every point ID with its status ('active' default)
+    // Also enrich each record with the point's spStatus for Power Automate iteration
+    const allSPIds = [...new Set([
+      ...SP.map(s => s.id),
+      ...S.locs.map(l => l.id)
+    ])];
+    const fullSpStatus = {};
+    allSPIds.forEach(id => { fullSpStatus[id] = S.spStatus[id] || 'active'; });
+    const recsWithStatus = S.recs.map(r => Object.assign({}, r, { spStatus: S.spStatus[r.spId] || 'active', vals: compressVals(r.vals) }));
+
+    const data = {
+      version: 2,
+      timestamp: new Date().toISOString(),
+      records: recsWithStatus,
+      locations: allLocs,
+      customParams: allParams,
+      customPresets: S.customPresets,
+      customLims: S.customLims,
+      spStatus: fullSpStatus,
+      spFreq: S.spFreq
+    };
+    const json = JSON.stringify(data, null, 2);
+    
+    // Save latest file
+    const latestFile = await syncFolderHandle.getFileHandle(SYNC_FILE, { create: true });
+    const writable = await latestFile.createWritable();
+    await writable.write(json);
+    await writable.close();
+    
+    // Save timestamped backup
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFile = await syncFolderHandle.getFileHandle(`wsp_backup_${ts}.json`, { create: true });
+    const writable2 = await backupFile.createWritable();
+    await writable2.write(json);
+    await writable2.close();
+    
+    // Save report files to Reports subfolder
+    const reportsWithFiles = S.recs.filter(r => r.reportFile && r.reportFile.data);
+    if (reportsWithFiles.length > 0) {
+      try {
+        const reportsFolder = await syncFolderHandle.getDirectoryHandle('Reports', { create: true });
+        for (const rec of reportsWithFiles) {
+          const fileName = `${rec.date}_${rec.rpt || 'NoReport'}.${rec.reportFile.name.split('.').pop()}`.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileHandle = await reportsFolder.getFileHandle(fileName, { create: true });
+          const writable = await fileHandle.createWritable();
+          // Convert base64 data to binary
+          const base64Data = rec.reportFile.data.split(',')[1];
+          const binaryData = atob(base64Data);
+          const bytes = new Uint8Array(binaryData.length);
+          for (let i = 0; i < binaryData.length; i++) {
+            bytes[i] = binaryData.charCodeAt(i);
+          }
+          await writable.write(bytes);
+          await writable.close();
+          // Update record to store filename instead of full data
+          rec.reportFile = { name: rec.reportFile.name, fileName: fileName, type: rec.reportFile.type, size: rec.reportFile.size };
+        }
+        // Re-save JSON with updated records (without base64 data)
+        const recsWithStatus2 = S.recs.map(r => Object.assign({}, r, { spStatus: S.spStatus[r.spId] || 'active', vals: compressVals(r.vals) }));
+        const updatedData = { ...data, records: recsWithStatus2 };
+        const updatedJson = JSON.stringify(updatedData, null, 2);
+        const latestFile2 = await syncFolderHandle.getFileHandle(SYNC_FILE, { create: true });
+        const writable3 = await latestFile2.createWritable();
+        await writable3.write(updatedJson);
+        await writable3.close();
+      } catch (e) {
+        console.error('Failed to save report files:', e);
+      }
+    }
+    
+    toast('Synced to folder! (' + S.recs.length + ' records)', 'success');
+    console.log('Sync completed at', new Date().toLocaleString());
+  } catch(e) {
+    console.error('Sync failed:', e);
+    toast('Sync failed: ' + e.message, 'error');
+  }
+}
+
+async function loadFromSync() {
+  if (!syncFolderHandle) {
+    toast('Sync not connected. Please setup first.', 'error');
+    return;
+  }
+  try {
+    // Verify permission
+    const perm = await syncFolderHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      const reqPerm = await syncFolderHandle.requestPermission({ mode: 'readwrite' });
+      if (reqPerm !== 'granted') {
+        toast('Permission denied.', 'error');
+        return;
+      }
+    }
+    
+    // Read latest file
+    const latestFile = await syncFolderHandle.getFileHandle(SYNC_FILE);
+    const file = await latestFile.getFile();
+    const text = await file.text();
+    const data = JSON.parse(text);
+    
+    // Apply data - separate built-in from custom
+    S.recs = data.records || [];
+    S.locs = [];
+    S.customParams = [];
+    S.customPresets = data.customPresets || [];
+S.customLims = data.customLims || {};
+    S.spStatus = data.spStatus || {};
+    S.spFreq = data.spFreq || {};
+    
+    // Process locations - extract customizations for built-in, add custom ones
+    // Deduplicate by id (the source JSON may have legacy duplicates)
+    const loadedLocs = data.locations || [];
+    const _loadedSeen = new Set();
+    loadedLocs.forEach(loc => {
+      if(!loc.id)return;
+      if(_loadedSeen.has(loc.id))return; // skip duplicate
+      _loadedSeen.add(loc.id);
+      const isBuiltIn = SP.find(sp => sp.id === loc.id);
+      if (isBuiltIn) {
+        // Built-in point - extract customizations
+        if (loc.freq) S.spFreq[loc.id] = loc.freq;
+        if (loc.spStatus) S.spStatus[loc.id] = loc.spStatus;
+        // Store other customizations in S.locs
+        const customLoc = {
+          id: loc.id,
+          n: loc.n,
+          wt: loc.wt,
+          bld: loc.bld || '',
+          area: loc.area || ''
+        };
+        if (loc.freq) customLoc.freq = loc.freq;
+        if (loc.sampleMonths && loc.sampleMonths.length > 0) customLoc.sampleMonths = loc.sampleMonths;
+        if (loc.areaLink) customLoc.areaLink = loc.areaLink;
+        S.locs.push(customLoc);
+      } else {
+        // Custom location - add to S.locs
+        S.locs.push(loc);
+      }
+    });
+    
+    // Process parameters - only keep custom ones (not in PM)
+    const loadedParams = data.customParams || [];
+    loadedParams.forEach(param => {
+      const isBuiltIn = PM.find(p => p.id === param.id);
+      if (!isBuiltIn) {
+        S.customParams.push(param);
+      }
+    });
+    
+    // Save to localStorage too
+    try {
+      localStorage.setItem(LS, JSON.stringify(S.recs));
+      localStorage.setItem(LS_LOC, JSON.stringify(S.locs));
+      localStorage.setItem(LS_PM, JSON.stringify(S.customParams));
+      localStorage.setItem(LS_PRESETS, JSON.stringify(S.customPresets));
+      localStorage.setItem(LS_LIMS, JSON.stringify(S.customLims));
+      localStorage.setItem(LS_ST, JSON.stringify(S.spStatus));
+      localStorage.setItem(LS_FR, JSON.stringify(S.spFreq));
+    } catch(e) {}
+    
+    // Refresh UI
+    popWtSel();
+    popFilters();
+    renderDash();
+    renderRec();
+    renderLoc();
+    renderParam();
+    renderPresetList();
+    
+    const ts = data.timestamp ? new Date(data.timestamp).toLocaleString() : 'unknown';
+    toast('Loaded from sync! (' + S.recs.length + ' records, saved ' + ts + ')', 'success');
+  } catch(e) {
+    if (e.name === 'NotFoundError') {
+      toast('No sync data found in folder. Click "Sync Now" to save data first.', 'error');
+    } else {
+      console.error('Load from sync failed:', e);
+      toast('Load failed: ' + e.message, 'error');
+    }
+  }
+}
+
+async function disconnectSync() {
+  if (confirm('Disconnect from sync folder? Your local data will be kept.')) {
+    syncEnabled = false;
+    syncFolderHandle = null;
+    await clearFolderHandle();
+    updateSyncUI(false);
+    toast('Sync disconnected.', 'success');
+  }
+}
+
+async function tryRestoreSync() {
+  // Try to restore sync connection on startup
+  try {
+    const handle = await loadFolderHandle();
+    if (handle) {
+      // Verify permission
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        syncFolderHandle = handle;
+        syncEnabled = true;
+        updateSyncUI(true, `Connected to: ${handle.name} (auto-restored)`);
+        console.log('Sync auto-restored');
+        return true;
+      }
+    }
+  } catch(e) {
+    console.log('Could not restore sync:', e);
+  }
+  return false;
+}
+// ══════════ INIT ══════════
+async function init(){
+  // Try to restore folder sync first
+  const syncRestored = await tryRestoreSync();
+  
+  if(syncRestored) {
+    // Try to load from sync folder
+    try {
+      await loadFromSync();
+      console.log('Loaded data from sync folder');
+    } catch(e) {
+      console.log('No sync data, loading from localStorage');
+      loadFromLocalStorage();
+    }
+  } else {
+    // Try to initialize SharePoint mode
+    const spReady = await initSharePoint();
+    
+    if(spReady) {
+      // Load data from SharePoint Lists
+      try {
+        await loadFromSharePoint();
+      } catch(e) {
+        console.error('Failed to load from SharePoint:', e);
+        toast('Failed to load data from SharePoint. Using local cache.', 'error');
+        loadFromLocalStorage();
+      }
+    } else {
+      // Fall back to localStorage
+      loadFromLocalStorage();
+    }
+  }
+  
+  popWtSel();popFilters();renderDash();
+  document.querySelector('input[name="dt"]').valueAsDate=new Date();
+}
+
+function loadFromLocalStorage(){
+  try {
+    const d=localStorage.getItem(LS);
+    S.recs=d?JSON.parse(d):[];
+    if(!d)seed();
+    const ld=localStorage.getItem(LS_LOC);
+    S.locs=ld?JSON.parse(ld):[];
+    const sd=localStorage.getItem(LS_ST);
+    S.spStatus=sd?JSON.parse(sd):{};
+    const fd=localStorage.getItem(LS_FR);
+    S.spFreq=fd?JSON.parse(fd):{};
+    const pd=localStorage.getItem(LS_PM);
+    S.customParams=pd?JSON.parse(pd):[];
+    // Migrate older custom params stored with 'name'/'unit' keys
+    let pmMigrated=false;
+    S.customParams.forEach(p=>{
+      if(p.n===undefined&&p.name!==undefined){p.n=p.name;delete p.name;pmMigrated=true}
+      if(p.u===undefined&&p.unit!==undefined){p.u=p.unit;delete p.unit;pmMigrated=true}
+    });
+    if(pmMigrated){try{localStorage.setItem(LS_PM,JSON.stringify(S.customParams))}catch(e){}}
+    const prd=localStorage.getItem(LS_PRESETS);
+    S.customPresets=prd?JSON.parse(prd):[];
+    const lmd=localStorage.getItem(LS_LIMS);
+    S.customLims=lmd?JSON.parse(lmd):{};
+  } catch(e) {
+    console.log('localStorage not available, using empty state');
+    S.recs=[];
+    S.locs=[];
+    S.spStatus={};
+    S.spFreq={};
+    S.customParams=[];
+    S.customPresets=[];
+    S.customLims={};
+    seed();
+  }
+}
+
+async function loadFromSharePoint(){
+  // Load Records
+  const recItems = await spGetListItems(SP_LISTS.records);
+  S.recs = recItems.map(item => ({
+    id: item.Title,
+    spId: item.spId,
+    wtId: item.wtId,
+    date: item.date ? item.date.split('T')[0] : '',
+    sType: item.sType,
+    rpt: item.rpt,
+    status: item.status,
+    ca: item.ca,
+    rmk: item.rmk,
+    vals: item.vals ? JSON.parse(item.vals) : {},
+    _spId: item.Id // SharePoint item ID for updates
+  }));
+  
+  // Load Locations
+  const locItems = await spGetListItems(SP_LISTS.locations);
+  S.locs = locItems.map(item => {
+    const loc={
+      id: item.Title,
+      n: item.n,
+      wt: item.wt,
+      bld: item.bld,
+      area: item.area,
+      freq: item.freq,
+      sampleMonths: item.sampleMonths ? JSON.parse(item.sampleMonths) : [],
+      _spId: item.Id
+    };
+    if(item.areaLink)loc.areaLink=item.areaLink;
+    return loc;
+  });
+  
+  // Load Parameters
+  const paramItems = await spGetListItems(SP_LISTS.parameters);
+  S.customParams = paramItems.map(item => ({
+    id: item.Title,
+    n: item.n,
+    c: item.c,
+    u: item.u,
+    rl: item.rl,
+    ref: item.ref,
+    f: item.f,
+    _spId: item.Id
+  }));
+  
+  // Load Settings (status and frequency)
+  const settingsItems = await spGetListItems(SP_LISTS.settings);
+  const statusSetting = settingsItems.find(s => s.Title === 'spStatus');
+  const freqSetting = settingsItems.find(s => s.Title === 'spFreq');
+  S.spStatus = statusSetting ? JSON.parse(statusSetting.Value) : {};
+  S.spFreq = freqSetting ? JSON.parse(freqSetting.Value) : {};
+}
+function save(){
+  try { localStorage.setItem(LS,JSON.stringify(S.recs)); } catch(e) {}
+  if(isSPMode) saveRecsToSP();
+  if(syncEnabled) syncNow(); // Auto-sync to folder
+}
+
+let _spSaveBusy=false;
+
+async function saveRecsToSP(){
+  if(!isSPMode) {
+    console.log('Not in SharePoint mode, skipping SP save');
+    return;
+  }
+  if(_spSaveBusy){console.log('SP save already in progress, skipping');return}
+  _spSaveBusy=true;
+  try {
+    console.log('Saving', S.recs.length, 'records to SharePoint...');
+    for(const rec of S.recs) {
+      if(rec._spId) {
+        // Update existing
+        await spUpdateListItem(SP_LISTS.records, rec._spId, {
+          spId: rec.spId,
+          wtId: rec.wtId,
+          date: rec.date,
+          sType: rec.sType,
+          rpt: rec.rpt,
+          status: rec.status,
+          ca: rec.ca,
+          rmk: rec.rmk,
+          vals: JSON.stringify(rec.vals)
+        });
+      } else {
+        // Create new
+        const result = await spCreateListItem(SP_LISTS.records, {
+          Title: rec.id,
+          spId: rec.spId,
+          wtId: rec.wtId,
+          date: rec.date,
+          sType: rec.sType,
+          rpt: rec.rpt,
+          status: rec.status,
+          ca: rec.ca,
+          rmk: rec.rmk,
+          vals: JSON.stringify(rec.vals)
+        });
+        rec._spId = result.d.Id;
+      }
+    }
+    console.log('Records saved successfully');
+    toast('Records synced to SharePoint', 'success');
+  } catch(e) {
+    console.error('Failed to save records to SharePoint:', e);
+    toast('Failed to sync records: ' + e.message, 'error');
+  } finally {
+    _spSaveBusy=false;
+  }
+}
+
+function saveLocs(){
+  try { localStorage.setItem(LS_LOC,JSON.stringify(S.locs)); } catch(e) {}
+  if(isSPMode) saveLocsToSP();
+  if(syncEnabled) syncNow(); // Auto-sync to folder
+}
+
+async function saveLocsToSP(){
+  try {
+    // Build a Title→Id map from current SharePoint list to prevent duplicate creation
+    // when restoring from backup or importing (loc._spId may be missing)
+    const existingItems = await spGetListItems(SP_LISTS.locations) || [];
+    const titleToId = {};
+    existingItems.forEach(item => { if (!titleToId[item.Title]) titleToId[item.Title] = item.Id; });
+    for(const loc of S.locs) {
+      // Reclaim _spId from SharePoint if missing (e.g. after restore/import)
+      if(!loc._spId && titleToId[loc.id]) loc._spId = titleToId[loc.id];
+      if(loc._spId) {
+        await spUpdateListItem(SP_LISTS.locations, loc._spId, {
+          n: loc.n,
+          wt: loc.wt,
+          bld: loc.bld,
+          area: loc.area,
+          areaLink: loc.areaLink || '',
+          freq: loc.freq || '',
+          sampleMonths: JSON.stringify(loc.sampleMonths || []),
+          spStatus: S.spStatus[loc.id] || 'active'
+        });
+      } else {
+        const result = await spCreateListItem(SP_LISTS.locations, {
+          Title: loc.id,
+          n: loc.n,
+          wt: loc.wt,
+          bld: loc.bld,
+          area: loc.area,
+          areaLink: loc.areaLink || '',
+          freq: loc.freq || '',
+          sampleMonths: JSON.stringify(loc.sampleMonths || []),
+          spStatus: S.spStatus[loc.id] || 'active'
+        });
+        loc._spId = result.d.Id;
+      }
+    }
+  } catch(e) {
+    console.error('Failed to save locations to SharePoint:', e);
+  }
+}
+
+function saveStatus(){
+  try { localStorage.setItem(LS_ST,JSON.stringify(S.spStatus)); } catch(e) {}
+  if(isSPMode) saveSettingsToSP();
+}
+
+function saveFreq(){
+  try { localStorage.setItem(LS_FR,JSON.stringify(S.spFreq)); } catch(e) {}
+  if(isSPMode) saveSettingsToSP();
+  if(syncEnabled) syncNow(); // Auto-sync to folder
+}
+
+async function saveSettingsToSP(){
+  try {
+    // Save status settings
+    const statusItem = { Title: 'spStatus', Value: JSON.stringify(S.spStatus) };
+    // Save frequency settings
+    const freqItem = { Title: 'spFreq', Value: JSON.stringify(S.spFreq) };
+    
+    // Note: For simplicity, we're creating new items each time
+    // In production, you'd want to track the _spId and update instead
+    await spCreateListItem(SP_LISTS.settings, statusItem);
+    await spCreateListItem(SP_LISTS.settings, freqItem);
+  } catch(e) {
+    console.error('Failed to save settings to SharePoint:', e);
+  }
+}
+
+function saveParams(){
+  // This is a duplicate - the real one is below with sync logic
+}
+
+async function saveParamsToSP(){
+  try {
+    for(const param of S.customParams) {
+      if(param._spId) {
+        await spUpdateListItem(SP_LISTS.parameters, param._spId, {
+          n: param.n,
+          c: param.c,
+          u: param.u,
+          rl: param.rl,
+          ref: param.ref,
+          f: param.f
+        });
+      } else {
+        const result = await spCreateListItem(SP_LISTS.parameters, {
+          Title: param.id,
+          n: param.n,
+          c: param.c,
+          u: param.u,
+          rl: param.rl,
+          ref: param.ref,
+          f: param.f
+        });
+        param._spId = result.d.Id;
+      }
+    }
+  } catch(e) {
+    console.error('Failed to save parameters to SharePoint:', e);
+  }
+}
+async function savePresetsToSP(){
+  // TODO: Implement SharePoint sync for preset sets when SP_LISTS has a presets list
+  console.log('Preset sets sync to SP not yet implemented');
+}
+function getSt(id){if(!S.spStatus)return'active';return S.spStatus[id]||'active'}
+function setSt(id,st){if(st==='active')delete S.spStatus[id];else S.spStatus[id]=st;saveStatus()}
+function getFreq(id){
+  // Check per-point override first
+  if(S.spFreq[id])return S.spFreq[id];
+  // Check custom location's freq field
+  const cl=S.locs.find(l=>l.id===id);
+  if(cl&&cl.freq)return cl.freq;
+  // Default to Monthly for all water types
+  return'M';
+}
+function setFreq(id,f){if(!f)delete S.spFreq[id];else S.spFreq[id]=f;saveFreq()}
+function freqName(f){if(f==='N')return'Nil';return FREQ_OPTS[f]?FREQ_OPTS[f].n:'Default'}
+// ══════════ PARAMETERS ══════════
+function saveParams(){
+  try { localStorage.setItem(LS_PM,JSON.stringify(S.customParams)); } catch(e) {}
+  if(isSPMode) saveParamsToSP();
+  if(syncEnabled) syncNow(); // Auto-sync to folder
+}
+function getAllPM(){return[...PM,...S.customParams]}
+function pmById(pid){return getAllPM().find(p=>p.id===pid)}
+function toggleParamForm(){
+  const form=document.getElementById('param-add-form');
+  const btn=document.getElementById('param-add-btn');
+  if(form.classList.contains('hid')){form.classList.remove('hid');btn.textContent='\u2212 Hide Form';btn.classList.replace('btn-p','btn-o');if(document.getElementById('pf-edit-id').value==='')renderParamLimits(null)}
+  else{form.classList.add('hid');btn.textContent='+ Add Parameter';btn.classList.replace('btn-o','btn-p');document.getElementById('param-form').reset();document.getElementById('pf-edit-id').value='';document.getElementById('param-form-title').textContent='Add New Parameter';document.getElementById('pf-submit').textContent='Add Parameter';document.getElementById('pf-id').disabled=false;renderParamLimits(null)}
+}
+function saveParam(e){
+  e.preventDefault();
+  const editId=document.getElementById('pf-edit-id').value;
+  const id=document.getElementById('pf-id').value.trim().toUpperCase();
+  const name=document.getElementById('pf-name').value.trim();
+  const cat=document.getElementById('pf-cat').value;
+  const unit=document.getElementById('pf-unit').value.trim();
+  const rl=document.getElementById('pf-rl').value;
+  const ref=document.getElementById('pf-ref').value.trim();
+  const vt=document.getElementById('pf-vt').value;
+  // Collect limits by water type
+  const lims={};
+  document.querySelectorAll('#pf-limits input').forEach(inp=>{
+    const v=inp.value.trim();
+    if(v)lims[inp.dataset.wt]=v;
+  });
+  if(editId){
+    // Check custom params first, then built-in
+    const idx=S.customParams.findIndex(p=>p.id===editId);
+    if(idx>=0){S.customParams[idx]={...S.customParams[idx],id,n:name,c:cat,u:unit,rl:rl?parseFloat(rl):null,ref:ref||null,f:vt}}
+    else{
+      // Built-in parameter (admin edit)
+      const bi=PM.find(p=>p.id===editId);
+      if(bi){bi.n=name;bi.c=cat;bi.u=unit;bi.rl=rl?parseFloat(rl):null;bi.ref=ref||null;bi.f=vt}
+    }
+    saveLims(editId,lims);
+    saveParams();toast('Parameter updated','success');
+  }else{
+    if(PM.find(p=>p.id===id)||S.customParams.find(p=>p.id===id)){toast('Parameter ID already exists','error');return}
+    S.customParams.push({id,n:name,c:cat,u:unit,rl:rl?parseFloat(rl):null,ref:ref||null,f:vt});
+    saveLims(id,lims);
+    saveParams();toast('Parameter added','success');
+  }
+  document.getElementById('param-form').reset();
+  document.getElementById('pf-edit-id').value='';
+  document.getElementById('param-form-title').textContent='Add New Parameter';
+  document.getElementById('pf-submit').textContent='Add Parameter';
+  document.getElementById('pf-id').disabled=false;
+  toggleParamForm();
+  renderParam();
+}
+function editParam(pid){
+  const p=pmById(pid);if(!p)return;
+  const isCustom=S.customParams.find(cp=>cp.id===pid);
+  if(!isCustom&&!isAdmin){toast('Admin mode required to edit built-in parameters','error');return}
+  document.getElementById('pf-edit-id').value=p.id;
+  document.getElementById('pf-id').value=p.id;
+  document.getElementById('pf-id').disabled=true;
+  document.getElementById('pf-name').value=p.n;
+  document.getElementById('pf-cat').value=p.c;
+  document.getElementById('pf-unit').value=p.u;
+  document.getElementById('pf-rl').value=p.rl||'';
+  document.getElementById('pf-ref').value=p.ref||'';
+  document.getElementById('pf-vt').value=p.f;
+  renderParamLimits(p.id);
+  document.getElementById('param-form-title').textContent='Edit Parameter: '+p.n;
+  document.getElementById('pf-submit').textContent='Update Parameter';
+  const form=document.getElementById('param-add-form');
+  if(form.classList.contains('hid'))toggleParamForm();
+}
+function renderParamLimits(pid){
+  const box=document.getElementById('pf-limits');
+  if(!box)return;
+  let h='';
+  Object.keys(WT).forEach(wt=>{
+    const wtName=WT[wt]?WT[wt].n:wt;
+    const cur=pid?getLim(wt,pid):'';
+    h+=`<label>${esc(wtName)}<input type="text" data-wt="${esc(wt)}" placeholder="—" value="${esc(cur||'')}"></label>`;
+  });
+  box.innerHTML=h;
+}
+function saveLims(pid,lims){
+  // Remove existing custom limits for this param
+  Object.keys(S.customLims).forEach(wt=>{
+    if(S.customLims[wt][pid]!==undefined)delete S.customLims[wt][pid];
+  });
+  // Apply new limits as custom overrides (only if different from built-in)
+  Object.keys(lims).forEach(wt=>{
+    const builtIn=(LIM[wt]||{})[pid];
+    if(builtIn===lims[wt])return; // Same as built-in, no override needed
+    if(!S.customLims[wt])S.customLims[wt]={};
+    S.customLims[wt][pid]=lims[wt];
+  });
+  try { localStorage.setItem(LS_LIMS,JSON.stringify(S.customLims)); } catch(e) {}
+  if(isSPMode) saveParamsToSP();
+  if(syncEnabled) syncNow();
+}
+function delParam(pid){
+  if(!isAdmin){toast('Admin access required to delete parameters','error');return}
+  const isCustom=S.customParams.find(cp=>cp.id===pid);
+  if(!isCustom){toast('Built-in parameters cannot be deleted','error');return}
+  if(!confirm('Delete parameter "'+pmById(pid).n+'"? This cannot be undone.'))return;
+  S.customParams=S.customParams.filter(p=>p.id!==pid);
+  Object.keys(S.customLims).forEach(wt=>{delete S.customLims[wt][pid]});
+  try { localStorage.setItem(LS_LIMS,JSON.stringify(S.customLims)); } catch(e) {}
+  saveParams();renderParam();toast('Parameter deleted','success');
+}
+function renderParam(){
+  const srch=(document.getElementById('param-srch').value||'').toLowerCase();
+  const cat=document.getElementById('param-fcat').value;
+  const all=getAllPM();
+  // Populate category filter
+  const cats=[...new Set(all.map(p=>p.c))].sort();
+  const catSel=document.getElementById('param-fcat');
+  const curCat=catSel.value;
+  catSel.innerHTML='<option value="">All Categories</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  catSel.value=curCat;
+  // Filter
+  let filtered=all;
+  if(srch)filtered=filtered.filter(p=>p.n.toLowerCase().includes(srch)||p.id.toLowerCase().includes(srch)||p.u.toLowerCase().includes(srch));
+  if(cat)filtered=filtered.filter(p=>p.c===cat);
+  document.getElementById('param-cnt').textContent=filtered.length+' of '+all.length;
+  // Render table
+  let h='<table><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Unit</th><th>Report Level</th><th>Reference (Drinking Water)</th><th>Limits by Water Type</th><th>Type</th><th></th></tr></thead><tbody>';
+  if(filtered.length===0)h+='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--txt2)">No parameters found</td></tr>';
+  filtered.forEach(p=>{
+    const refDisplay=getLim('DRINKING',p.id)||(p.ref||'—');
+    const rlDisplay=p.rl!=null?p.rl:'—';
+    const vtDisplay=p.f==='i'?'Integer':p.f==='dn'?'Detected/Not Detected':'Decimal';
+    // Build water type limits
+    const wtLimits=[];
+    Object.keys(LIM).forEach(wt=>{
+      const lim=getLim(wt,p.id);
+      if(lim){
+        const isCustomLim=S.customLims[wt]&&S.customLims[wt][p.id]!==undefined;
+        const wtName=WT[wt]?WT[wt].n:wt;
+        wtLimits.push(`<span style="font-size:10px;background:${isCustomLim?'#fff3cd':'var(--pri-l)'};padding:2px 6px;border-radius:3px;margin:2px;display:inline-block">${wtName}: ${lim}${isCustomLim?' *':''}</span>`);
+      }
+    });
+    const wtLimitsDisplay=wtLimits.length>0?wtLimits.join(''):'<span style="color:var(--txt2);font-size:11px">No specific limits</span>';
+    const isCustom=S.customParams.find(cp=>cp.id===p.id);
+    const canEditParam=isCustom||isAdmin;
+    const actions=canEditParam?`<td style="white-space:nowrap"><button class="btn btn-o btn-s" onclick="editParam('${p.id}')" style="font-size:10px;padding:2px 6px">Edit</button>${isCustom&&isAdmin?` <button class="btn btn-r btn-s" onclick="delParam('${p.id}')" style="font-size:10px;padding:2px 6px">\u2715</button>`:''}</td>`:'<td></td>';
+    h+=`<tr><td><code>${esc(p.id)}</code></td><td><strong>${esc(p.n)}</strong></td><td>${esc(p.c)}</td><td>${esc(p.u)}</td><td>${rlDisplay}</td><td>${esc(refDisplay)}</td><td style="max-width:300px">${wtLimitsDisplay}</td><td>${vtDisplay}</td>${actions}</tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('param-tbl').innerHTML=h;
+}
+// ══════════ PRESET SETS ══════════
+function savePresets(){
+  try { localStorage.setItem(LS_PRESETS,JSON.stringify(S.customPresets)); } catch(e) {}
+  if(isSPMode) savePresetsToSP();
+  if(syncEnabled) syncNow();
+}
+function togglePresetForm(idx){
+  const form=document.getElementById('preset-add-form');
+  const btn=document.getElementById('preset-add-btn');
+  if(idx!==undefined){
+    // Editing
+    const preset=S.customPresets[idx];
+    document.getElementById('preset-edit-idx').value=idx;
+    document.getElementById('preset-name').value=preset.n;
+    document.getElementById('preset-form-title').textContent='Edit Preset Set';
+    btn.textContent='\u2212 Hide Form';btn.classList.replace('btn-p','btn-o');
+    form.classList.remove('hid');
+    populatePresetParamsContainer(preset.params);
+  } else if(form.classList.contains('hid')){
+    form.classList.remove('hid');btn.textContent='\u2212 Hide Form';btn.classList.replace('btn-p','btn-o');
+    document.getElementById('preset-form').reset();
+    document.getElementById('preset-edit-idx').value='';
+    document.getElementById('preset-form-title').textContent='Add Preset Set';
+    populatePresetParamsContainer([]);
+  } else {
+    form.classList.add('hid');btn.textContent='+ Add Preset';btn.classList.replace('btn-o','btn-p');
+    document.getElementById('preset-form').reset();
+    document.getElementById('preset-edit-idx').value='';
+  }
+}
+function populatePresetParamsContainer(selectedParams){
+  const allParams=getAllPM();
+  const container=document.getElementById('preset-params-container');
+  container.innerHTML=allParams.map(p=>
+    `<label style="font-size:11px;display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--card);border:1px solid var(--brd);border-radius:4px;cursor:pointer"><input type="checkbox" name="pp" value="${p.id}" ${selectedParams.includes(p.id)?'checked':''}> ${esc(p.n)}</label>`
+  ).join('');
+}
+function savePreset(e){
+  e.preventDefault();
+  const name=document.getElementById('preset-name').value.trim();
+  const params=[...document.querySelectorAll('[name="pp"]:checked')].map(c=>c.value);
+  if(!name){toast('Please enter a preset name','error');return}
+  if(params.length===0){toast('Please select at least one parameter','error');return}
+  const editIdx=document.getElementById('preset-edit-idx').value;
+  if(editIdx!==''){
+    // Editing existing
+    S.customPresets[parseInt(editIdx)]={n:name,params};
+    toast('Preset updated!','success');
+  } else {
+    S.customPresets.push({n:name,params});
+    toast('Preset created!','success');
+  }
+  savePresets();renderPresetList();togglePresetForm();
+}
+function delPreset(idx){
+  if(!confirm('Delete preset "'+S.customPresets[idx].n+'"?'))return;
+  S.customPresets.splice(idx,1);
+  savePresets();renderPresetList();toast('Preset deleted','success');
+}
+function renderPresetList(){
+  const el=document.getElementById('preset-list');
+  if(!S.customPresets.length){el.innerHTML='<p style="font-size:12px;color:var(--txt2);padding:8px">No custom presets yet. Click "+ Add Preset" to create one.</p>';return}
+  const allParams=getAllPM();
+  let h='<div style="display:flex;flex-wrap:wrap;gap:10px">';
+  S.customPresets.forEach((preset,idx)=>{
+    const paramNames=preset.params.map(pid=>{const p=allParams.find(x=>x.id===pid);return p?p.n:pid}).join(', ');
+    h+=`<div style="flex:1;min-width:220px;max-width:350px;padding:8px 10px;border:1px solid var(--brd);border-radius:6px;background:var(--bg)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="font-size:11px">${esc(preset.n)}</strong>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-o btn-s" onclick="togglePresetForm(${idx})" style="font-size:10px;padding:2px 6px">Edit</button>
+          <button class="btn btn-r btn-s" onclick="delPreset(${idx})" style="font-size:10px;padding:2px 6px">\u2715</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--txt2)">${preset.params.length} params: ${esc(paramNames)}</div>
+    </div>`;
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+function applyPreset(idx){
+  const preset=S.customPresets[idx];
+  if(!preset)return;
+  // First uncheck all parameters
+  document.querySelectorAll('#p-inputs input[type="checkbox"][name^="t_"]').forEach(cb=>{
+    cb.checked=false;
+    const pid=cb.name.replace('t_','');
+    const p=getAllPM().find(x=>x.id===pid);
+    if(p)togParam(pid,p.f==='i');
+  });
+  // Then check the ones in the preset
+  preset.params.forEach(pid=>{
+    const cb=document.querySelector(`#p-inputs input[name="t_${pid}"]`);
+    if(cb){
+      cb.checked=true;
+      const p=getAllPM().find(x=>x.id===pid);
+      if(p)togParam(pid,p.f==='i');
+    }
+  });
+  toast(`Applied preset: ${preset.n}`,'success');
+}
+function toggleLocForm(){
+  const form=document.getElementById('loc-add-form');
+  const btn=document.getElementById('loc-add-btn');
+  if(form.classList.contains('hid')){form.classList.remove('hid');btn.textContent='− Hide Form';btn.classList.replace('btn-p','btn-o')}
+  else{form.classList.add('hid');btn.textContent='+ Add Sampling Point';btn.classList.replace('btn-o','btn-p');document.getElementById('loc-form').reset();document.getElementById('loc-edit-id').value='';document.getElementById('loc-lid').disabled=false;document.getElementById('loc-form-title').textContent='Add New Sampling Point';document.getElementById('loc-submit-btn').textContent='Add Location';document.querySelectorAll('[name="lmonths"]').forEach(cb=>{cb.disabled=false});const allCb=document.getElementById('lmonths-all');if(allCb)allCb.disabled=false;const freqSel=document.getElementById('loc-freq');if(freqSel){freqSel.disabled=false;if(freqSel.value==='N')freqSel.value=''}updateMonthsAllState()}
+}
+function activeSP(){return allSP().filter(s=>getSt(s.id)==='active')}
+function allSP(){
+  // Combine built-in SP with custom S.locs, deduplicating by ID
+  // S.locs takes precedence (may have customizations)
+  const customIds = new Set(S.locs.map(l => l.id));
+  const builtInOnly = SP.filter(sp => !customIds.has(sp.id));
+  return [...builtInOnly, ...S.locs];
+}
+function spById(id){return allSP().find(s=>s.id===id)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+// ══════════ SEED ══════════
+function seed(){
+  // No built-in locations to seed from
+  save();
+  return;
+}
+// ══════════ HELPERS ══════════
+function canEdit(rec){
+  if(isAdmin)return true; // Admin can always edit
+  if(!rec.created)return false; // Records without timestamp cannot be edited
+  const created=new Date(rec.created);
+  const now=new Date();
+  const hoursDiff=(now-created)/(1000*60*60);
+  return hoursDiff<24; // Can edit within 24 hours
+}
+function getLim(wtId,pId){
+  // 1. Custom limit override for this water type (highest priority)
+  const c=S.customLims[wtId]&&S.customLims[wtId][pId];
+  if(c!==undefined&&c!==null&&c!=='')return c;
+  // 2. Built-in limit for this water type
+  const builtIn=(LIM[wtId]||{})[pId];
+  if(builtIn!==undefined&&builtIn!==null&&builtIn!=='')return builtIn;
+  // 3. Fall back to the parameter's standard reference value (e.g. LEG: '10')
+  const p=getAllPM().find(x=>x.id===pId);
+  if(p&&p.ref!==undefined&&p.ref!==null&&p.ref!=='')return p.ref;
+  return null;
+}
+function isRange(l){return l&&l.includes('-')}
+// Normalize value: handles compressed (number, {b:true}, {e:str}) and full ({tested,belowRL,value}) formats
+function normVal(v){
+  if(v==null)return null;
+  if(typeof v==='number')return{tested:true,belowRL:false,value:v};
+  if(typeof v==='string')return{tested:true,belowRL:false,value:v};
+  if(typeof v==='object'){
+    if('tested' in v)return v;
+    if(v.b)return{tested:true,belowRL:true};
+    if(v.e!==undefined)return{tested:true,belowRL:false,value:v.e};
+  }
+  return null;
+}
+// Compress vals for JSON export: removes redundant 'tested' flag, uses short keys
+function compressVals(vals){
+  if(!vals)return{};
+  const r={};
+  for(const[k,v]of Object.entries(vals)){
+    const nv=normVal(v);if(!nv||!nv.tested)continue;
+    if(nv.belowRL)r[k]={b:true};
+    else if(typeof nv.value==='string')r[k]={e:nv.value};
+    else r[k]=nv.value!=null?nv.value:null;
+  }
+  return r;
+}
+function chkPass(pId,val,lim){
+  const nv=normVal(val);if(!nv||!nv.tested||!lim)return null;
+  if(nv.belowRL)return true; // below reporting level = always pass
+  const v=nv.value;
+  // Handle Detected / Not Detected
+  if(v==='not_detected')return true;
+  if(v==='detected')return false;
+  if(v==null||isNaN(parseFloat(v)))return null;
+  const num=parseFloat(v);
+  if(isRange(lim)){const[a,b]=lim.split('-').map(Number);return num>=a&&num<=b}
+  // Strict params (e.g. LEG) use strict less-than; otherwise use ≤
+  const strict=getAllPM().find(x=>x.id===pId)?.strict;
+  return strict?num<parseFloat(lim):num<=parseFloat(lim);
+}
+function overallPass(rec){
+  const wt=rec.wtId;let anyFail=false,tested=0;
+  for(const[pid,val]of Object.entries(rec.vals||{})){
+    const nv=normVal(val);if(!nv||!nv.tested)continue;
+    // Below reporting level is always a pass and does not require a defined limit
+    if(nv.belowRL){tested++;continue}
+    const lim=getLim(wt,pid);if(!lim)continue;
+    const ok=chkPass(pid,val,lim);if(ok===null)continue;
+    tested++;if(ok===false)anyFail=true;
+  }
+  if(tested===0)return'N/A';
+  return anyFail?'Fail':'Pass';
+}
+function fmtD(d){if(!d)return'—';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}
+function esc(s){if(s==null)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+function toast(m,t){const e=document.createElement('div');e.className='tst tst-'+(t==='success'?'s':'e');e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
+function wtName(id){return WT[id]?WT[id].n:id}
+// ══════════ ADMIN MODE ══════════
+async function toggleAdmin(){
+  if(isAdmin){
+    isAdmin=false;
+    updateAdminUI();
+    toast('Admin mode disabled','success');
+  }else{
+    const pass=prompt('Enter admin password:');
+    if(pass){
+      const hash=await hashPassword(pass);
+      if(hash===ADMIN_HASH){
+        isAdmin=true;
+        updateAdminUI();
+        toast('Admin mode enabled','success');
+      }else{
+        toast('Incorrect password','error');
+      }
+    }
+  }
+}
+function updateAdminUI(){
+  const icon=document.getElementById('admin-icon');
+  const text=document.getElementById('admin-text');
+  const btn=document.getElementById('admin-btn');
+  if(isAdmin){
+    icon.textContent='🔓';
+    text.textContent='Admin ON';
+    btn.style.background='rgba(22,163,74,.1)';
+  }else{
+    icon.textContent='🔒';
+    text.textContent='Admin';
+    btn.style.background='var(--hdr-pill)';
+  }
+  // Update delete buttons visibility
+  document.querySelectorAll('.del-btn').forEach(b=>b.style.display=isAdmin?'':'none');
+  // Update Clear All Data button visibility
+  const clearAllBtn=document.getElementById('clear-all-btn');
+  if(clearAllBtn)clearAllBtn.style.display=isAdmin?'':'none';
+}
+// ══════════ DELETE MODAL ══════════
+let pendingDeleteFn=null;
+function showDelModal(msg,deleteFn){
+  if(!isAdmin){toast('Admin mode required to delete','error');return}
+  document.getElementById('del-msg').textContent=msg;
+  document.getElementById('del-reason').value='';
+  pendingDeleteFn=deleteFn;
+  document.getElementById('del-modal').classList.remove('hid');
+}
+function closeDelModal(){
+  document.getElementById('del-modal').classList.add('hid');
+  pendingDeleteFn=null;
+}
+function confirmDelete(){
+  const reason=document.getElementById('del-reason').value.trim();
+  if(!reason){toast('Please provide a reason','error');return}
+  if(pendingDeleteFn){
+    console.log('Delete reason:',reason);
+    pendingDeleteFn();
+  }
+  closeDelModal();
+}
+// ══════════ TABS ══════════
+function showTab(n){
+  const map={dash:0,sched:1,add:2,rec:3,loc:4,param:5,io:6};
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===map[n]));
+  ['dash','sched','add','rec','loc','param','io'].forEach(t=>document.getElementById('t-'+t).classList.toggle('hid',t!==n));
+  if(n==='dash')renderDash();if(n==='rec')renderRec();if(n==='add')onWtChange();if(n==='loc')renderLoc();if(n==='sched')renderSched();if(n==='param'){renderParam();renderPresetList()}
+}
+// ══════════ FORM ══════════
+function popWtSel(){
+  const sel=document.getElementById('f-wt');
+  sel.innerHTML='<option value="">-- Select --</option>'+Object.entries(WT).map(([k,v])=>`<option value="${k}">${esc(v.n)}</option>`).join('');
+}
+function onWtChange(existingVals){
+  const wtId=document.getElementById('f-wt').value;
+  const box=document.getElementById('sp-list');
+  if(!wtId){box.innerHTML='<p style="font-size:12px;color:var(--txt2);padding:8px">Select water type first</p>';updSpCnt();document.getElementById('p-inputs').innerHTML='';return}
+  const pts=activeSP().filter(s=>s.wt===wtId);
+  // Sort by schedule priority (overdue/due first)
+  const prioMap={};
+  try{
+    const sched=calcSchedule();
+    sched.overdue.forEach(i=>prioMap[i.spId]={cat:0,due:i.due});
+    sched.thisMonth.forEach(i=>prioMap[i.spId]={cat:1,due:i.due});
+    sched.nextMonth.forEach(i=>prioMap[i.spId]={cat:2,due:i.due});
+    sched.future.forEach(i=>prioMap[i.spId]={cat:3,due:i.due});
+    pts.sort((a,b)=>{
+      const pa=prioMap[a.id]||{cat:4,due:null};
+      const pb=prioMap[b.id]||{cat:4,due:null};
+      if(pa.cat!==pb.cat)return pa.cat-pb.cat;
+      if(pa.due&&pb.due)return pa.due-pb.due;
+      if(pa.due)return -1;if(pb.due)return 1;
+      return a.n.localeCompare(b.n);
+    });
+  }catch(e){console.error('Schedule sort error:',e)}
+  // Group by building
+  const groups={};pts.forEach(s=>{if(!groups[s.bld])groups[s.bld]=[];groups[s.bld].push(s)});
+  // Build search map for the live filter
+  const spSrchMap={};
+  pts.forEach(s=>{spSrchMap[s.id]=`${s.n} ${s.bld} ${s.area||''} ${s.id}`.toLowerCase()});
+  S.spSrchMap=spSrchMap;
+  let h='';
+  Object.keys(groups).sort().forEach(bld=>{
+    h+=`<div class="sp-grp" style="font-size:10px;font-weight:700;color:var(--txt2);padding:4px 6px 2px;text-transform:uppercase">${esc(bld)}</div>`;
+    groups[bld].forEach(s=>{
+      const p=prioMap[s.id];
+      let dueTag='';
+      if(p&&p.cat===0) dueTag=`<span class="badge b-fail" style="font-size:9px;padding:1px 4px">OVERDUE</span>`;
+      else if(p&&p.cat===1) dueTag=`<span class="badge b-pend" style="font-size:9px;padding:1px 4px">THIS month</span>`;
+      h+=`<label class="sp-item"><input type="checkbox" name="sp" value="${s.id}"><span>${esc(s.n)}</span>${dueTag}<span class="sp-bld">${esc(s.area)} (${esc(s.id)})</span></label>`;
+    });
+  });
+  box.innerHTML=h;
+  box.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener('change',updSpCnt));
+  updSpCnt();
+  renderParamInputs(wtId,existingVals);
+}
+function getCheckedSp(){return[...document.querySelectorAll('#sp-list input:checked')].map(c=>c.value)}
+function selAllSp(){document.querySelectorAll('#sp-list .sp-item').forEach(lbl=>{if(lbl.style.display!=='none'){const cb=lbl.querySelector('input[type="checkbox"]');if(cb)cb.checked=true}});updSpCnt()}
+function clrAllSp(){document.querySelectorAll('#sp-list .sp-item').forEach(lbl=>{if(lbl.style.display!=='none'){const cb=lbl.querySelector('input[type="checkbox"]');if(cb)cb.checked=false}});updSpCnt()}
+function updSpCnt(){const n=getCheckedSp().length;const cnt=document.getElementById('sp-cnt');if(cnt)cnt.textContent=n+' selected';filterSpList()}
+function clearSpSrch(){const inp=document.getElementById('sp-srch');if(inp){inp.value='';filterSpList()}}
+function filterSpList(){
+  const q=(document.getElementById('sp-srch')?.value||'').toLowerCase().trim();
+  const box=document.getElementById('sp-list');
+  if(!box)return;
+  const map=S.spSrchMap||{};
+  const items=box.querySelectorAll('.sp-item');
+  let visibleCount=0;
+  items.forEach(lbl=>{
+    const cb=lbl.querySelector('input[type="checkbox"]');
+    const id=cb?cb.value:'';
+    const text=map[id]||'';
+    const match=!q||text.includes(q);
+    lbl.style.display=match?'':'none';
+    if(match)visibleCount++;
+  });
+  // Hide group headers that have no visible items beneath them
+  box.querySelectorAll('.sp-grp').forEach(grp=>{
+    let nxt=grp.nextElementSibling,hasVisible=false;
+    while(nxt&&!nxt.classList.contains('sp-grp')){
+      if(nxt.classList.contains('sp-item')&&nxt.style.display!=='none'){hasVisible=true;break}
+      nxt=nxt.nextElementSibling;
+    }
+    grp.style.display=hasVisible?'':'none';
+  });
+  // Update count to show filter context
+  const total=items.length;
+  const checked=box.querySelectorAll('input[type="checkbox"]:checked').length;
+  const cnt=document.getElementById('sp-cnt');
+  if(cnt)cnt.textContent=q?(visibleCount+' of '+total+' shown, '+checked+' selected'):(checked+' selected');
+}
+function renderParamInputs(wtId,existingVals){
+  const el=document.getElementById('p-inputs');
+  // Use getLim so the form shows the same limits overallPass will use (including the ref fallback)
+  const allParams=getAllPM();
+  const pids=allParams.map(p=>p.id);
+  const lims={};
+  allParams.forEach(p=>{const l=getLim(wtId,p.id);if(l)lims[p.id]=l});
+  if(!pids.length){el.innerHTML='<p style="color:var(--txt2);font-size:12px">No parameters defined.</p>';return}
+  document.getElementById('limit-hint').textContent='(check parameters that were tested)';
+  // Build preset dropdown if custom presets exist
+  let presetDropdown='';
+  if(S.customPresets&&S.customPresets.length>0){
+    presetDropdown=`<div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+      <label style="font-size:11px;font-weight:600;white-space:nowrap">Preset:</label>
+      <select id="preset-select" onchange="if(this.value!=='')applyPreset(parseInt(this.value));this.value=''" style="font-size:11px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;background:var(--card);color:var(--txt);cursor:pointer;min-width:120px">
+        <option value="">-- Choose --</option>
+        ${S.customPresets.map((p,i)=>`<option value="${i}">${esc(p.n)}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  // Add Select All checkbox and Mark All as <RL button
+  let h=`<div style="display:flex;align-items:center;gap:12px;padding:8px 10px;background:var(--pri-l);border-radius:6px;margin-bottom:8px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="select-all-params" onchange="toggleAllParams()">
+      <label for="select-all-params" style="font-size:12px;font-weight:600;cursor:pointer">Select All</label>
+    </div>
+    <button type="button" onclick="markAllBelowRL()" style="font-size:11px;padding:4px 10px;background:var(--card);border:1px solid var(--brd);border-radius:4px;cursor:pointer;font-weight:600;color:var(--txt)">Mark All as &lt;RL</button>
+    ${presetDropdown}
+  </div>`;
+  h+=pids.map(pid=>{
+    const p=allParams.find(x=>x.id===pid);if(!p)return'';
+    const lim=lims[pid]||''; // May be empty for non-applicable parameters
+    const limTxt=lim?(isRange(lim)?lim.split('-').join(' – '):(p.strict?'< ':'≤ ')+lim):'No limit';
+    const ev=existingVals?normVal(existingVals[pid]):null;
+    // Pre-check if: has existing value (for new records, nothing is pre-checked)
+    const isTested=ev&&ev.tested?true:false;
+    const isBRL=isTested&&ev&&ev.belowRL;
+    const isDN=p.f==='dn';
+    const val=isTested&&ev&&!ev.belowRL&&ev.value!=null?ev.value:'';
+    const dnVal=isTested&&ev&&ev.value?ev.value:'';
+    if(isDN){
+      return`<div class="pr${isTested?'':' off'}" id="pr-${pid}" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--brd);border-radius:6px;background:${isTested?'var(--card)':'var(--bg)'};transition:all 0.2s">`+
+        `<input type="checkbox" name="t_${pid}" ${isTested?'checked':''} onchange="togParam('${pid}',false)" style="width:14px;height:14px;cursor:pointer">`+
+        `<div style="min-width:0">`+
+          `<div style="font-weight:600;font-size:11px;color:var(--txt);margin-bottom:1px">${esc(p.n)}</div>`+
+          `<div style="font-size:10px;color:var(--txt2)">${limTxt} ${esc(p.u)}</div>`+
+        `</div>`+
+        `<select name="v_${pid}" style="display:${isTested?'block':'none'};padding:4px 8px;border:1px solid var(--brd);border-radius:4px;font-size:11px;min-width:120px;background:var(--card);color:var(--txt)">`+
+          `<option value="">— Select —</option>`+
+          `<option value="not_detected" ${dnVal==='not_detected'?'selected':''} style="color:var(--grn)">✓ Not Detected</option>`+
+          `<option value="detected" ${dnVal==='detected'?'selected':''} style="color:var(--red)">✗ Detected</option>`+
+        `</select>`+
+        `</div>`;
+    }
+    return`<div class="pr${isTested?'':' off'}" id="pr-${pid}" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--brd);border-radius:6px;background:${isTested?'var(--card)':'var(--bg)'};transition:all 0.2s">`+
+      `<input type="checkbox" name="t_${pid}" ${isTested?'checked':''} onchange="togParam('${pid}',${p.f==='i'})" style="width:14px;height:14px;cursor:pointer">`+
+      `<div style="min-width:0">`+
+        `<div style="font-weight:600;font-size:11px;color:var(--txt);margin-bottom:1px">${esc(p.n)}</div>`+
+        `<div style="font-size:10px;color:var(--txt2)">${limTxt} ${esc(p.u)}</div>`+
+      `</div>`+
+      `<label style="display:${isTested?'flex':'none'};align-items:center;gap:4px;padding:4px 8px;background:var(--bg);border-radius:4px;cursor:pointer;font-size:10px;font-weight:600;white-space:nowrap" id="brl-${pid}">`+
+        `<input type="checkbox" name="brl_${pid}" ${isBRL?'checked':''} onchange="togBRL('${pid}')" style="width:12px;height:12px"> <span>&lt;RL</span>`+
+      `</label>`+
+      `<input name="v_${pid}" type="number" step="${p.f==='i'?'1':'any'}" min="0" placeholder="Enter value" value="${val}" style="display:${isTested&&!isBRL?'block':'none'};padding:4px 8px;border:1px solid var(--brd);border-radius:4px;font-size:11px;width:100px;text-align:right">`+
+      `<span style="display:${isTested&&!isBRL?'block':'none'};font-size:10px;color:var(--txt2);min-width:50px">${esc(p.u)}</span>`+
+      `</div>`;
+  }).join('');
+  el.innerHTML=h;
+}
+function toggleAllParams(){
+  const selectAll=document.getElementById('select-all-params');
+  const isChecked=selectAll.checked;
+  // Get all parameter checkboxes (main t_ checkboxes only)
+  const paramCheckboxes=document.querySelectorAll('#p-inputs input[type="checkbox"][name^="t_"]');
+  paramCheckboxes.forEach(cb=>{
+    // Always set the checked state and call togParam
+    cb.checked=isChecked;
+    const pid=cb.name.replace('t_','');
+    const p=getAllPM().find(x=>x.id===pid);
+    if(p)togParam(pid,p.f==='i');
+  });
+}
+function markAllBelowRL(){
+  // Get all tested (checked) parameters
+  const paramCheckboxes=document.querySelectorAll('#p-inputs input[type="checkbox"][name^="t_"]:checked');
+  if(paramCheckboxes.length===0){
+    toast('No parameters selected. Check parameters first.','error');
+    return;
+  }
+  let count=0;
+  paramCheckboxes.forEach(cb=>{
+    const pid=cb.name.replace('t_','');
+    const p=getAllPM().find(x=>x.id===pid);
+    // Skip detect/non-detect parameters (they don't have <RL)
+    if(p&&p.f==='dn')return;
+    // Get the row
+    const row=document.getElementById('pr-'+pid);
+    if(row){
+      // Show the <RL label first (in case it's hidden)
+      const brlLabel=document.getElementById('brl-'+pid);
+      if(brlLabel)brlLabel.style.display='inline-flex';
+      // Find and check the <RL checkbox
+      const brlCb=row.querySelector(`input[name="brl_${pid}"]`);
+      if(brlCb&&!brlCb.checked){
+        brlCb.checked=true;
+        togBRL(pid);
+        count++;
+      }
+    }
+  });
+  toast(`${count} parameter(s) marked as <RL`,'success');
+}
+function togParam(pid,isInt){
+  const row=document.getElementById('pr-'+pid);
+  if(!row)return;
+  const cb=row.querySelector(`[name="t_${pid}"]`);
+  const brl=document.getElementById('brl-'+pid);
+  const inp=row.querySelector(`[name="v_${pid}"]`);
+  const pu=row.querySelector('.pu');
+  const p=getAllPM().find(x=>x.id===pid);
+  const isDN=p&&p.f==='dn';
+  if(cb.checked){
+    row.classList.remove('off');
+    row.style.background='var(--card)';
+    if(isDN){
+      if(inp)inp.style.display='block';
+    }else{
+      if(brl)brl.style.display='inline-flex';
+      const brlCb=row.querySelector(`[name="brl_${pid}"]`);
+      if(brlCb&&!brlCb.checked){
+        if(inp)inp.style.display='block';
+        if(pu)pu.style.display='inline';
+      }else{
+        if(inp)inp.style.display='none';
+        if(pu)pu.style.display='none';
+      }
+    }
+  }else{
+    row.classList.add('off');
+    row.style.background='var(--row-alt)';
+    if(brl&&!isDN)brl.style.display='none';
+    if(inp){inp.style.display='none';inp.value='';}
+    if(pu)pu.style.display='none';
+    const brlCb=row.querySelector(`[name="brl_${pid}"]`);if(brlCb)brlCb.checked=false;
+  }
+}
+function togBRL(pid){
+  const row=document.getElementById('pr-'+pid);
+  if(!row)return;
+  const brlCb=row.querySelector(`[name="brl_${pid}"]`);
+  const inp=row.querySelector(`[name="v_${pid}"]`);
+  const pu=row.querySelector('.pu');
+  if(brlCb&&brlCb.checked){
+    if(inp){inp.style.display='none';inp.value='';}
+    if(pu)pu.style.display='none';
+  }else{
+    if(inp)inp.style.display='block';
+    if(pu)pu.style.display='inline';
+  }
+}
+async function saveRec(e){
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const wtId=fd.get('wt');
+  const spIds=getCheckedSp();
+  if(!wtId||!spIds.length){toast('Select water type and at least one sampling point.','error');return}
+  const vals={};
+  // Check ALL parameters (not just those with limits for this water type)
+  const allParams=getAllPM();
+  const missingValues=[];
+  allParams.forEach(p=>{
+    const pid=p.id;
+    const tested=fd.get('t_'+pid)==='on';
+    if(!tested)return;
+    const isDN=p.f==='dn';
+    if(isDN){
+      const v=fd.get('v_'+pid);
+      if(!v||v===''){
+        missingValues.push(p.n);
+        return;
+      }
+      vals[pid]={tested:true,belowRL:false,value:v};
+    }else{
+      const belowRL=fd.get('brl_'+pid)==='on';
+      if(belowRL){
+        vals[pid]={tested:true,belowRL:true};
+      }else{
+        const v=fd.get('v_'+pid);
+        if(v===null||v===''){
+          missingValues.push(p.n);
+          return;
+        }
+        const num=p.f==='i'?parseInt(v):parseFloat(v);
+        vals[pid]={tested:true,belowRL:false,value:num};
+      }
+    }
+  });
+  // Show validation error if any tested parameters are missing values
+  if(missingValues.length>0){
+    toast('Please enter value or check <RL for: '+missingValues.join(', '),'error');
+    return;
+  }
+  // Handle file upload
+  let reportFile=null;
+  const fileInput=document.querySelector('[name="reportFile"]');
+  if(fileInput&&fileInput.files&&fileInput.files[0]){
+    const file=fileInput.files[0];
+    // Check file size (max 5MB)
+    if(file.size>5*1024*1024){toast('File too large. Max 5MB.','error');return}
+    // Convert to base64
+    reportFile=await new Promise((resolve)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve({name:file.name,type:file.type,size:file.size,data:reader.result});
+      reader.readAsDataURL(file);
+    });
+  }
+  const editId=document.getElementById('rec-edit-id').value;
+  if(editId){
+    // Editing: update single record
+    const i=S.recs.findIndex(r=>r.id===editId);
+    if(i>=0){
+      const updateData={spId:spIds[0],wtId,date:fd.get('dt'),sType:fd.get('st'),rpt:fd.get('rn').trim(),status:fd.get('sts'),ca:fd.get('ca').trim(),rmk:fd.get('rmk').trim(),vals};
+      if(reportFile)updateData.reportFile=reportFile;
+      Object.assign(S.recs[i],updateData);
+    }
+    toast('Record updated!','success');
+  }else{
+    // New: create one record per selected point
+    spIds.forEach(spId=>{
+      const rec={id:uid(),spId,wtId,date:fd.get('dt'),sType:fd.get('st'),rpt:fd.get('rn').trim(),status:fd.get('sts'),ca:fd.get('ca').trim(),rmk:fd.get('rmk').trim(),vals:{...vals},created:new Date().toISOString()};
+      if(reportFile)rec.reportFile=reportFile;
+      S.recs.push(rec);
+    });
+    toast(spIds.length+' record(s) saved!','success');
+  }
+  save();resetForm();showTab('rec');
+}
+function clearReportFile(){
+  const fileInput=document.querySelector('[name="reportFile"]');
+  if(fileInput){fileInput.value='';}
+  document.getElementById('clear-report-btn').style.display='none';
+  document.getElementById('report-preview').innerHTML='';
+}
+function deleteReportFile(recId){
+  if(!confirm('Delete this report file?'))return;
+  const rec=S.recs.find(r=>r.id===recId);
+  if(rec&&rec.reportFile){
+    delete rec.reportFile;
+    save();
+    toast('Report file deleted.','success');
+    openDet(recId); // Refresh the detail view
+  }
+}
+// Show/hide clear button when file is selected
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.name==='reportFile'){
+    const btn=document.getElementById('clear-report-btn');
+    if(e.target.files&&e.target.files[0]){
+      btn.style.display='inline-block';
+    }else{
+      btn.style.display='none';
+    }
+  }
+});
+function resetForm(){
+  document.getElementById('rf').reset();S.editId=null;
+  document.getElementById('rec-edit-id').value='';
+  document.getElementById('form-title').textContent='New Sampling Record';
+  document.querySelector('input[name="dt"]').valueAsDate=new Date();
+  document.getElementById('p-inputs').innerHTML='';
+  // Re-enable all sampling point checkboxes
+  document.querySelectorAll('#sp-list input[type="checkbox"]').forEach(cb=>cb.disabled=false);
+  onWtChange();
+}
+function editRec(){
+  const r=S.recs.find(x=>x.id===S.editId);if(!r)return;
+  const editId=S.editId;
+  closeDet();showTab('add');
+  // Store edit ID in hidden form field (reliable source of truth)
+  document.getElementById('rec-edit-id').value=editId;
+  S.editId=editId;
+  document.getElementById('form-title').textContent='Edit Record';
+  document.getElementById('f-wt').value=r.wtId;onWtChange(r.vals);
+  setTimeout(()=>{
+    // Only select the original sampling point and disable others
+    document.querySelectorAll('#sp-list input[type="checkbox"]').forEach(cb=>{
+      if(cb.value===r.spId){
+        cb.checked=true;
+        cb.disabled=true; // Lock to original sampling point
+      }else{
+        cb.checked=false;
+        cb.disabled=true; // Disable other selections during edit
+      }
+    });
+    updSpCnt();
+    document.querySelector('input[name="dt"]').value=r.date;
+    document.querySelector('[name="st"]').value=r.sType||'Scheduled';
+    document.querySelector('[name="rn"]').value=r.rpt||'';
+    document.querySelector('[name="sts"]').value=r.status||'Pass';
+    document.querySelector('[name="ca"]').value=r.ca||'';
+    document.querySelector('[name="rmk"]').value=r.rmk||'';
+  },50);
+}
+function delRec(){
+  S.recs=S.recs.filter(r=>r.id!==S.editId);save();closeDet();renderRec();renderDash();toast('Deleted.','success');
+}
+// ══════════ DASHBOARD ══════════
+function renderDash(){
+  // Populate month/year dropdowns
+  const monthSel=document.getElementById('dash-month');
+  const yearSel=document.getElementById('dash-year');
+  const periodSel=document.getElementById('dash-period');
+  const resultSel=document.getElementById('dash-result');
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  
+  if(monthSel.options.length===0){
+    monthSel.innerHTML=months.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+    monthSel.value=new Date().getMonth();
+  }
+  if(yearSel.options.length===0){
+    const yrs=[];
+    const curYr=new Date().getFullYear();
+    for(let y=curYr;y>=curYr-5;y--)yrs.push(y);
+    yearSel.innerHTML=yrs.map(y=>`<option value="${y}">${y}</option>`).join('');
+    yearSel.value=curYr;
+  }
+  
+  // Show/hide month selector based on period
+  monthSel.style.display=periodSel.value==='month'?'':'none';
+  
+  // Filter records by period
+  const period=periodSel.value;
+  const selMonth=parseInt(monthSel.value);
+  const selYear=parseInt(yearSel.value);
+  const result=resultSel.value;
+  
+  // Time-filtered records (for stats)
+  let timeFiltered=S.recs.filter(r=>{
+    const d=new Date(r.date);
+    if(period==='month')return d.getMonth()===selMonth&&d.getFullYear()===selYear;
+    if(period==='year')return d.getFullYear()===selYear;
+    return true;
+  });
+  
+  // Calculate stats from time-filtered records
+  const total=timeFiltered.length;
+  const passed=timeFiltered.filter(x=>overallPass(x)==='Pass').length;
+  const failed=timeFiltered.filter(x=>overallPass(x)==='Fail').length;
+  const retested=timeFiltered.filter(x=>x.sType==='Re-sampling').length;
+  const pts=new Set(timeFiltered.map(x=>x.spId)).size;
+  
+  document.getElementById('s-tot').textContent=total;
+  document.getElementById('s-pass').textContent=passed;
+  document.getElementById('s-fail').textContent=failed;
+  document.getElementById('s-retest').textContent=retested;
+  document.getElementById('s-pts').textContent=pts;
+  
+  // Apply result filter for table
+  let tableFiltered=timeFiltered;
+  if(result==='pass')tableFiltered=timeFiltered.filter(x=>overallPass(x)==='Pass');
+  else if(result==='fail')tableFiltered=timeFiltered.filter(x=>overallPass(x)==='Fail');
+  
+  // Update title based on period
+  const titleEl=document.getElementById('recent-title');
+  let titlePart='';
+  if(period==='month')titlePart=`${months[selMonth]} ${selYear}`;
+  else if(period==='year')titlePart=`${selYear}`;
+  else titlePart='All Time';
+  if(result!=='all')titlePart+=` — ${result==='pass'?'Passed':'Failed'}`;
+  titleEl.textContent=`Samples: ${titlePart} (${tableFiltered.length})`;
+  
+  // Table (sorted by date desc, limit 50)
+  const recent=[...tableFiltered].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,50);
+  const el=document.getElementById('recent');
+  if(!recent.length){el.innerHTML='<div class="emp">No records match the selected filters.</div>';return}
+  el.innerHTML='<div class="tw"><table><thead><tr><th>Date</th><th>Point</th><th>Bldg/Cat</th><th>Water Type</th><th>Report</th><th>Type</th><th>Result</th></tr></thead><tbody>'+
+    recent.map(x=>{const s=spById(x.spId);const op=overallPass(x);
+      return`<tr style="cursor:pointer" onclick="openDet('${x.id}')"><td>${fmtD(x.date)}</td><td>${esc(s?s.n:x.spId)}</td><td>${s?esc(s.bld):''}</td><td>${esc(wtName(x.wtId))}</td><td>${esc(x.rpt)}</td>`+
+      `<td>${esc(x.sType||'')}</td>`+
+      `<td><span class="badge ${op==='Pass'?'b-pass':op==='Fail'?'b-fail':'b-pend'}">${op}</span> <span style="font-size:10px;color:var(--txt2)">${Object.keys(x.vals||{}).length}p</span></td></tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+// ══════════ SCHEDULE ══════════
+let schedFilterMode='this';
+let schedPickedMonth='';
+function addMonths(d,n){const r=new Date(d);r.setMonth(r.getMonth()+n);return r}
+function calcSchedule(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const thisEnd=new Date(now.getFullYear(),now.getMonth()+1,0); // end of this month
+  const nextEnd=new Date(now.getFullYear(),now.getMonth()+2,0); // end of next month
+  const overdue=[],thisMonth=[],nextMonth=[],future=[],nosched=[];
+  activeSP().forEach(sp=>{
+    // Check if this point should be sampled in the current/next month
+    const loc=S.locs.find(l=>l.id===sp.id);
+    const sampleMonths=loc?.sampleMonths||[];
+    // One-off points: appear in schedule until first record is taken, then drop off
+    if(loc?.oneOff && S.recs.some(r=>r.spId===sp.id)) return;
+    const currentMonth=now.getMonth()+1; // 1-12
+    const nextMonthNum=(now.getMonth()+1)%12+1; // 1-12
+    // If sampleMonths is defined and current/next month is not in the list, skip
+    if(sampleMonths.length>0){
+      const inCurrentMonth=sampleMonths.includes(currentMonth);
+      const inNextMonth=sampleMonths.includes(nextMonthNum);
+      if(!inCurrentMonth&&!inNextMonth)return; // Not scheduled for these months
+    }
+    // Find last sample date for this point
+    const ptRecs=S.recs.filter(r=>r.spId===sp.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const lastRec=ptRecs[0];
+    const lastDate=lastRec?new Date(lastRec.date+'T00:00:00'):null;
+    const wt=WT[sp.wt];if(!wt)return;
+    const freq=getFreq(sp.id);
+    const freqDays=FREQ_OPTS[freq]?FREQ_OPTS[freq].d:30;
+    let due=null;
+    
+    // If custom sample months are defined, calculate due based on next occurrence
+    if(sampleMonths.length>0){
+      const sortedMonths=[...sampleMonths].sort((a,b)=>a-b);
+      if(lastDate){
+        const lastMonth=lastDate.getMonth()+1;
+        const lastYear=lastDate.getFullYear();
+        
+        // Check if this was an EARLY sample (taken before its scheduled month)
+        // e.g., sampled in March (3) for a May (5) requirement
+        const nextScheduledAfterSample=sortedMonths.find(m=>m>lastMonth);
+        let fulfilledMonth=null;
+        let fulfilledYear=lastYear;
+        if(nextScheduledAfterSample){
+          // Sample was taken early - it fulfills the NEXT scheduled month (same year)
+          fulfilledMonth=nextScheduledAfterSample;
+          fulfilledYear=lastYear;
+        }else{
+          // Sample was taken after all scheduled months this year
+          // It fulfills the FIRST scheduled month of NEXT year
+          fulfilledMonth=sortedMonths[0];
+          fulfilledYear=lastYear+1;
+        }
+        
+        // Now find the NEXT scheduled month AFTER the fulfilled one
+        const idx=sortedMonths.indexOf(fulfilledMonth);
+        const nextIdx=(idx+1)%sortedMonths.length;
+        const nextMonth=sortedMonths[nextIdx];
+        
+        if(nextMonth>fulfilledMonth){
+          // Next month is later in the same year as fulfilledMonth
+          due=new Date(fulfilledYear,nextMonth,0);
+        }else{
+          // Wrap to next year
+          due=new Date(fulfilledYear+1,nextMonth,0);
+        }
+      }else{
+        // No last sample, use first upcoming month or most recent past month
+        const upcomingMonth=sortedMonths.find(m=>m>=currentMonth);
+        if(upcomingMonth){
+          // Future or current month - use this year
+          due=new Date(now.getFullYear(),upcomingMonth,0);
+        }else{
+          // All months are in the past - use the last one (most recent) to show as overdue
+          due=new Date(now.getFullYear(),sortedMonths[sortedMonths.length-1],0);
+        }
+      }
+    }else if(lastDate){
+      // No custom months, use frequency-based calculation from last sample
+      due=new Date(lastDate.getTime()+freqDays*86400000);
+    }else{
+      // No custom months and no records - due end of current month
+      due=new Date(now.getFullYear(),now.getMonth()+1,0); // last day of current month
+    }
+    
+    const item={spId:sp.id,wtId:sp.wt,lastDate:lastDate?lastDate.toISOString().slice(0,10):null,due,sampleMonths};
+    if(!due){nosched.push(item);return}
+    item.status='';
+    if(due<now){item.status='overdue';overdue.push(item)}
+    else if(due<=thisEnd){item.status='this';thisMonth.push(item)}
+    else if(due<=nextEnd){item.status='next';nextMonth.push(item)}
+    else{item.status='future';future.push(item)}
+  });
+  overdue.sort((a,b)=>a.due-b.due);
+  thisMonth.sort((a,b)=>a.due-b.due);
+  nextMonth.sort((a,b)=>a.due-b.due);
+  future.sort((a,b)=>a.due-b.due);
+  return{overdue,thisMonth,nextMonth,future,nosched};
+}
+function schedFilter(mode){
+  schedFilterMode=mode;
+  schedPickedMonth='';
+  const mi=document.getElementById('sched-month');if(mi)mi.value='';
+  ['over','this','next'].forEach(m=>{
+    const btn=document.getElementById('sf-'+m);
+    if(m===mode){btn.style.opacity='1';btn.style.fontWeight='700'}
+    else{btn.style.opacity='.6';btn.style.fontWeight='600'}
+  });
+  renderSched();
+}
+function schedPickMonth(v){
+  if(!v){schedFilter('this');return}
+  schedPickedMonth=v;
+  schedFilterMode='month';
+  ['over','this','next'].forEach(m=>{
+    const btn=document.getElementById('sf-'+m);
+    btn.style.opacity='.6';btn.style.fontWeight='600';
+  });
+  renderSched();
+}
+function renderSched(){
+  // Populate filters
+  const fwt=document.getElementById('sc-fwt');
+  if(fwt.options.length<=1)fwt.innerHTML='<option value="">All Types</option>'+Object.entries(WT).map(([k,v])=>`<option value="${k}">${esc(v.n)}</option>`).join('');
+  const fb=document.getElementById('sc-fbld');
+  const blds=[...new Set(allSP().map(s=>s.bld))].sort();
+  const curB=fb.value;
+  fb.innerHTML='<option value="">All Bldg/Cats</option>'+blds.map(b=>`<option value="${b}">${esc(b)}</option>`).join('');
+  fb.value=curB;
+  let sched={overdue:[],thisMonth:[],nextMonth:[],future:[]};
+  try{sched=calcSchedule()}catch(e){console.error('Schedule calc error:',e)}
+  document.getElementById('sc-over').textContent=sched.overdue.length;
+  document.getElementById('sc-this').textContent=sched.thisMonth.length;
+  document.getElementById('sc-next').textContent=sched.nextMonth.length;
+  document.getElementById('sc-fut').textContent=sched.future.length;
+  // Filter by mode
+  let items=[];
+  const fwtV=document.getElementById('sc-fwt').value;
+  const fbV=document.getElementById('sc-fbld').value;
+  const now=new Date();
+  const moNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const thisMo=moNames[now.getMonth()]+' '+now.getFullYear();
+  const nextMo=moNames[(now.getMonth()+1)%12]+' '+((now.getMonth()+1===12)?now.getFullYear()+1:now.getFullYear());
+  if(schedFilterMode==='over'){items=sched.overdue;document.getElementById('sched-title').textContent='Overdue Sampling Points'}
+  else if(schedFilterMode==='this'){items=sched.thisMonth;document.getElementById('sched-title').textContent='Sampling This Month ('+thisMo+')'}
+  else if(schedFilterMode==='next'){items=sched.nextMonth;document.getElementById('sched-title').textContent='Sampling Next Month ('+nextMo+')'}
+  else{
+    // Full Schedule - show ALL sampling points with calculated schedules
+    const now2=new Date();now2.setHours(0,0,0,0);
+    const thisEnd2=new Date(now2.getFullYear(),now2.getMonth()+1,0);
+    const nextEnd2=new Date(now2.getFullYear(),now2.getMonth()+2,0);
+    items=allSP().map(sp=>{
+      const loc=S.locs.find(l=>l.id===sp.id);
+      const sampleMonths=loc?.sampleMonths||[];
+      const currentMonth=now2.getMonth()+1;
+      // Find last sample date
+      const ptRecs=S.recs.filter(r=>r.spId===sp.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const lastRec=ptRecs[0];
+      const lastDate=lastRec?new Date(lastRec.date+'T00:00:00'):null;
+      const freq=getFreq(sp.id);
+      const freqDays=FREQ_OPTS[freq]?FREQ_OPTS[freq].d:30;
+      let due=null;
+      let status='';
+      // Calculate due date
+      if(sampleMonths.length>0){
+        const sortedMonths=[...sampleMonths].sort((a,b)=>a-b);
+        if(lastDate){
+          const lastMonth=lastDate.getMonth()+1;
+          const lastYear=lastDate.getFullYear();
+          const nextMonth=sortedMonths.find(m=>m>lastMonth);
+          if(nextMonth){due=new Date(lastYear,nextMonth,0)}
+          else{due=new Date(lastYear+1,sortedMonths[0],0)}
+        }else{
+          const upcomingMonth=sortedMonths.find(m=>m>=currentMonth);
+          if(upcomingMonth){due=new Date(now2.getFullYear(),upcomingMonth,0)}
+          else{due=new Date(now2.getFullYear(),sortedMonths[sortedMonths.length-1],0)}
+        }
+      }else if(lastDate){
+        due=new Date(lastDate.getTime()+freqDays*86400000);
+      }else{
+        due=new Date(now2.getFullYear(),now2.getMonth()+1,0);
+      }
+      // Determine status
+      if(due<now2){status='overdue'}
+      else if(due<=thisEnd2){status='this'}
+      else if(due<=nextEnd2){status='next'}
+      else{status='future'}
+      return{spId:sp.id,wtId:sp.wt,lastDate:lastDate?lastDate.toISOString().slice(0,10):null,due,sampleMonths,status};
+    });
+    // Sort by status priority: overdue > this > next > future
+    const statusOrder={overdue:0,this:1,next:2,future:3};
+    items.sort((a,b)=>{
+      const sa=statusOrder[a.status]??4;
+      const sb=statusOrder[b.status]??4;
+      if(sa!==sb)return sa-sb;
+      // Within same status, sort by due date
+      if(a.due&&b.due)return a.due-b.due;
+      if(a.due)return -1;if(b.due)return 1;
+      return 0;
+    });
+    document.getElementById('sched-title').textContent='Full Schedule - All Sampling Points ('+items.length+')';
+    // Month picker: narrow to points due within the chosen month
+    if(schedFilterMode==='month'&&schedPickedMonth){
+      const pY=Number(schedPickedMonth.slice(0,4));const pM=Number(schedPickedMonth.slice(5,7));
+      const moStart=new Date(pY,pM-1,1);const moEnd=new Date(pY,pM,0);
+      items=items.filter(i=>i.due&&i.due>=moStart&&i.due<=moEnd);
+      document.getElementById('sched-title').textContent='Sampling in '+moNames[pM-1]+' '+pY+' ('+items.length+')';
+    }
+  }
+  // Apply type/building filters
+  if(fwtV)items=items.filter(i=>i.wtId===fwtV);
+  if(fbV)items=items.filter(i=>{const s=spById(i.spId);return s&&s.bld===fbV});
+  // Store current view for export/print
+  S.schedView=items.map(item=>{
+    const s=spById(item.spId);
+    const days=item.due?Math.ceil((item.due-new Date())/(86400000)):null;
+    return{status:item.status,point:s?s.n:item.spId,bld:s?s.bld:'',type:wtName(item.wtId),interval:freqName(getFreq(item.spId)),last:item.lastDate?fmtD(item.lastDate):'Never',due:item.due?fmtD(item.due.toISOString().slice(0,10)):'—',days:days===null?'—':days<0?Math.abs(days)+'d overdue':days===0?'Today':days+'d'};
+  });
+  const el=document.getElementById('sched-tbl');
+  if(!items.length){el.innerHTML='<div class="emp">No sampling points in this category.</div>';return}
+  el.innerHTML='<div class="tw"><table><thead><tr><th>Status</th><th>Point</th><th>Bldg/Cat</th><th>Type</th><th>Interval</th><th>Last Sampled</th><th>Due Date</th><th>Days</th></tr></thead><tbody>'+
+    items.map(item=>{
+      const s=spById(item.spId);
+      const wt=WT[item.wtId];
+      const isOver=item.status==='overdue';
+      const isThis=item.status==='this';
+      const isNext=item.status==='next';
+      const isFuture=item.status==='future';
+      const badge=isOver?'<span class="badge b-fail">OVERDUE</span>':isThis?'<span class="badge b-pend">DUE</span>':isNext?'<span class="badge" style="background:var(--pri-l);color:var(--pri)">UPCOMING</span>':isFuture?'<span class="badge b-pass">FUTURE</span>':'<span class="badge" style="background:var(--brd);color:var(--txt2)">NO SCHEDULE</span>';
+      const days=item.due?Math.ceil((item.due-new Date())/(86400000)):null;
+      const daysTxt=days===null?'—':days<0?`<strong style="color:var(--red)">${Math.abs(days)}d overdue</strong>`:days===0?'<strong style="color:var(--orn)">Today</strong>':`${days}d`;
+      return`<tr><td>${badge}</td><td>${esc(s?s.n:item.spId)}</td><td>${s?esc(s.bld):''}</td><td>${esc(wtName(item.wtId))}</td>`+
+        `<td>${freqName(getFreq(item.spId))}</td><td>${item.lastDate?fmtD(item.lastDate):'<span style="color:var(--red)">Never</span>'}</td>`+
+        `<td>${item.due?fmtD(item.due.toISOString().slice(0,10)):'—'}</td><td>${daysTxt}</td></tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+// ══════════ SCHEDULE EXPORT / PRINT ══════════
+function expSchedViewCsv(){
+  const items=S.schedView||[];
+  if(!items.length){toast('No schedule data to export.','error');return}
+  const title=document.getElementById('sched-title').textContent;
+  const hd=['Status','Point','Building','Type','Interval','Last Sampled','Due Date','Days'];
+  const csv=[hd,...items.map(i=>[i.status,i.point,i.bld,i.type,i.interval,i.last,i.due,i.days])]
+    .map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  dl(csv,'WSP_Schedule_'+new Date().toISOString().slice(0,10)+'.csv','text/csv');
+  toast('Schedule exported!','success');
+}
+function printSched(){
+  const items=S.schedView||[];
+  if(!items.length){toast('No schedule data to print.','error');return}
+  const title=document.getElementById('sched-title').textContent;
+  const w=window.open('','_blank','width=900,height=600');
+  if(!w){toast('Popup blocked. Please allow popups for this site.','error');return}
+  w.document.write(`<html><head><title>${esc(title)}</title>`+
+    `<style>body{font-family:Segoe UI,Arial,sans-serif;margin:20px;color:#323130}`+
+    `h2{font-size:16px;margin-bottom:4px}.sub{font-size:11px;color:#605e5c;margin-bottom:12px}`+
+    `table{border-collapse:collapse;width:100%;font-size:11px}`+
+    `th{background:#f5f7fa;border:1px solid #d2d0ce;padding:5px 8px;text-align:left;font-weight:600}`+
+    `td{border:1px solid #d2d0ce;padding:4px 8px}`+
+    `.overdue{color:#d13438;font-weight:600}.due{color:#ff8c00;font-weight:600}`+
+    `@media print{button{display:none}}</style></head><body>`+
+    `<h2>${esc(title)}</h2><div class="sub">Generated ${new Date().toLocaleString()} | Water Safety Plan Sampling Tracker</div>`+
+    `<table><thead><tr><th>Status</th><th>Point</th><th>Bldg/Cat</th><th>Type</th><th>Interval</th><th>Last Sampled</th><th>Due Date</th><th>Days</th></tr></thead><tbody>`+
+    items.map(i=>{
+      const cls=i.status==='overdue'?'overdue':i.status==='this'?'due':'';
+      const statusTxt=i.status==='overdue'?'OVERDUE':i.status==='this'?'DUE THIS MONTH':i.status==='next'?'UPCOMING':'FUTURE';
+      return `<tr><td class="${cls}">${statusTxt}</td><td>${esc(i.point)}</td><td>${esc(i.bld)}</td><td>${esc(i.type)}</td><td>${esc(i.interval)}</td><td>${esc(i.last)}</td><td>${esc(i.due)}</td><td>${esc(i.days)}</td></tr>`;
+    }).join('')+
+    `</tbody></table>`+
+    `<div style="margin-top:14px"><button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer">Print</button> <button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer">Close</button></div>`+
+    `</body></html>`);
+  w.document.close();
+}
+// ══════════ RECORDS ══════════
+function popFilters(){
+  const wts=document.getElementById('flt-wt');
+  wts.innerHTML='<option value="">All Types</option>'+Object.entries(WT).map(([k,v])=>`<option value="${k}">${esc(v.n)}</option>`).join('');
+  const blds=document.getElementById('flt-bld');
+  const bs=[...new Set(allSP().map(s=>s.bld))].sort();
+  blds.innerHTML='<option value="">All Bldg/Cats</option>'+bs.map(b=>`<option value="${b}">${esc(b)}</option>`).join('');
+}
+function renderRec(){
+  const q=(document.getElementById('srch')?.value||'').toLowerCase();
+  const fwt=document.getElementById('flt-wt')?.value||'';
+  const fb=document.getElementById('flt-bld')?.value||'';
+  const fr=document.getElementById('flt-res')?.value||'';
+  let f=S.recs.filter(r=>{
+    if(fwt&&r.wtId!==fwt)return false;
+    if(fb){const s=spById(r.spId);if(!s||s.bld!==fb)return false}
+    if(fr&&overallPass(r)!==fr)return false;
+    if(q){const s=spById(r.spId);const hay=[s?s.n:'',s?s.bld:'',wtName(r.wtId),r.rpt,r.date,r.status].join(' ').toLowerCase();if(!hay.includes(q))return false}
+    return true;
+  });
+  // Sort filtered records by selected column/direction
+  f.sort((a,b)=>{
+    let va,vb;
+    const col=recSort.col;
+    if(col==='date'){va=new Date(a.date||0);vb=new Date(b.date||0);return recSort.dir==='asc'?va-vb:vb-va}
+    else if(col==='point'){const sa=spById(a.spId);const sb=spById(b.spId);va=sa?sa.n:a.spId;vb=sb?sb.n:b.spId}
+    else if(col==='bldg'){const sa=spById(a.spId);const sb=spById(b.spId);va=sa?sa.bld:'';vb=sb?sb.bld:''}
+    else if(col==='type'){va=wtName(a.wtId);vb=wtName(b.wtId)}
+    else if(col==='rpt'){va=a.rpt||'';vb=b.rpt||''}
+    else if(col==='status'){va=a.status||'';vb=b.status||''}
+    else if(col==='result'){va=overallPass(a);vb=overallPass(b)}
+    else{va=new Date(a.date||0);vb=new Date(b.date||0);return recSort.dir==='asc'?va-vb:vb-va}
+    va=va||'';vb=vb||'';
+    const cmp=String(va).localeCompare(String(vb),undefined,{numeric:true});
+    return recSort.dir==='asc'?cmp:-cmp;
+  });
+  const el=document.getElementById('rec-tbl');
+  if(!f.length){el.innerHTML='<div class="emp">No records found.</div>';return}
+  // Sort indicator helper
+  const sortIcon=(col)=>recSort.col===col?(recSort.dir==='asc'?' \u25B2':' \u25BC'):'';
+  const sortClick=(col)=>`onclick="recSort.col='${col}';recSort.dir=recSort.dir==='asc'?'desc':'asc';renderRec()" style="cursor:pointer;user-select:none"`;
+  el.innerHTML='<div class="tw"><table><thead><tr>'+
+    `<th ${sortClick('date')}>Date${sortIcon('date')}</th>`+
+    `<th ${sortClick('point')}>Point${sortIcon('point')}</th>`+
+    `<th ${sortClick('bldg')}>Bldg/Cat${sortIcon('bldg')}</th>`+
+    `<th ${sortClick('type')}>Type${sortIcon('type')}</th>`+
+    `<th ${sortClick('rpt')}>Report${sortIcon('rpt')}</th>`+
+    `<th ${sortClick('status')}>Status${sortIcon('status')}</th>`+
+    `<th ${sortClick('result')}>Result${sortIcon('result')}</th>`+
+    `<th></th></tr></thead><tbody>`+
+    f.map(r=>{const s=spById(r.spId);const op=overallPass(r);const ptSt=getSt(r.spId);const stTag=ptSt!=='active'?' <span class="badge st-'+ptSt+'" style="font-size:9px;padding:1px 5px">'+ST_OPTS[ptSt]+'</span>':'';
+      return`<tr><td>${fmtD(r.date)}</td><td>${esc(s?s.n:r.spId)}${stTag}</td><td>${s?esc(s.bld):''}</td><td>${esc(wtName(r.wtId))}</td><td>${esc(r.rpt)}</td>`+
+      `<td>${esc(r.status||'')}</td><td><span class="badge ${op==='Pass'?'b-pass':op==='Fail'?'b-fail':'b-pend'}">${op}</span> <span style="font-size:10px;color:var(--txt2)">${Object.keys(r.vals||{}).length}p</span></td>`+
+      `<td><button class="btn btn-o btn-s" onclick="openDet('${r.id}')">View</button></td></tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+// ══════════ LOCATIONS ══════════
+function renderLoc(){
+  // Populate filter dropdowns
+  const fwt=document.getElementById('loc-fwt');
+  if(fwt.options.length<=1){fwt.innerHTML='<option value="">All Types</option>'+Object.entries(WT).map(([k,v])=>`<option value="${k}">${esc(v.n)}</option>`).join('')}
+  const fb=document.getElementById('loc-fbld');
+  const blds=[...new Set(allSP().map(s=>s.bld))].sort();
+  const curB=fb.value;
+  fb.innerHTML='<option value="">All Bldg/Cats</option>'+blds.map(b=>`<option value="${b}">${esc(b)}</option>`).join('');
+  fb.value=curB;
+  // Populate form water type dropdown
+  const lwt=document.getElementById('loc-wt');
+  if(lwt.options.length===0)lwt.innerHTML='<option value="">-- Select --</option>'+Object.entries(WT).map(([k,v])=>`<option value="${k}">${esc(v.n)}</option>`).join('');
+  // Filter and render table
+  const q=(document.getElementById('loc-srch')?.value||'').toLowerCase();
+  const fwtV=document.getElementById('loc-fwt')?.value||'';
+  const fbV=document.getElementById('loc-fbld')?.value||'';
+  const fstV=document.getElementById('loc-fst')?.value||'';
+  const showInact=document.getElementById('loc-show-inactive')?.checked||false;
+  const pts=allSP().filter(s=>{
+    const st=getSt(s.id);
+    if(!showInact&&st==='inactive')return false;
+    if(fstV&&st!==fstV)return false;
+    if(fwtV&&s.wt!==fwtV)return false;
+    if(fbV&&s.bld!==fbV)return false;
+    if(q){const hay=[s.id,s.n,s.bld,s.area,wtName(s.wt)].join(' ').toLowerCase();if(!hay.includes(q))return false}
+    return true;
+  });
+  // Sort the filtered points
+  pts.sort((a,b)=>{
+    let va,vb;
+    const col=locSort.col;
+    if(col==='id'){va=a.id;vb=b.id}
+    else if(col==='n'){va=a.n;vb=b.n}
+    else if(col==='bld'){va=a.bld;vb=b.bld}
+    else if(col==='area'){va=a.area;vb=b.area}
+    else if(col==='wt'){va=wtName(a.wt);vb=wtName(b.wt)}
+    else if(col==='freq'){va=getFreq(a.id);vb=getFreq(b.id)}
+    else if(col==='status'){va=getSt(a.id);vb=getSt(b.id)}
+    else{va=a.id;vb=b.id}
+    va=va||'';vb=vb||'';
+    const cmp=String(va).localeCompare(String(vb),undefined,{numeric:true});
+    return locSort.dir==='asc'?cmp:-cmp;
+  });
+  document.getElementById('loc-cnt').textContent='('+pts.length+' points)';
+  const el=document.getElementById('loc-tbl');
+  if(!pts.length){el.innerHTML='<div class="emp">No locations found.</div>';return}
+  // Sort indicator helper
+  const sortIcon=(col)=>locSort.col===col?(locSort.dir==='asc'?' ▲':' ▼'):'';
+  const sortClick=(col)=>`onclick="locSort.col='${col}';locSort.dir=locSort.dir==='asc'?'desc':'asc';renderLoc()" style="cursor:pointer"`;
+  el.innerHTML='<div class="tw"><table><thead><tr>'+
+    `<th ${sortClick('id')}>ID${sortIcon('id')}</th>`+
+    `<th ${sortClick('n')}>Name${sortIcon('n')}</th>`+
+    `<th ${sortClick('bld')}>Bldg/Cat${sortIcon('bld')}</th>`+
+    `<th ${sortClick('area')}>Area${sortIcon('area')}</th>`+
+    `<th ${sortClick('wt')}>Water Type${sortIcon('wt')}</th>`+
+    `<th ${sortClick('freq')}>Frequency${sortIcon('freq')}</th>`+
+    `<th>Sample Months</th>`+
+    `<th ${sortClick('status')}>Status${sortIcon('status')}</th>`+
+    `<th></th></tr></thead><tbody>`+
+    pts.map(s=>{
+      const isUser=S.locs.some(u=>u.id===s.id);
+      const st=getSt(s.id);
+      const freq=getFreq(s.id);
+      const loc=S.locs.find(l=>l.id===s.id);
+      const sampleMonths=loc?.sampleMonths||[];
+      const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthsDisplay=loc?.oneOff?'<span class="badge b-pend" style="font-size:9px;padding:1px 5px">One-off</span>':(sampleMonths.length>0?sampleMonths.map(m=>monthNames[m-1]).join(', '):'<span style="color:var(--txt2);font-size:11px">All months</span>');
+      const rowCls=st==='outoforder'?'loc-row-ooo':st==='renovating'?'loc-row-renovating':st==='inactive'?'loc-row-inactive':'';
+      const isOneOffLoc=!!S.locs.find(l=>l.id===s.id)?.oneOff;
+      const stSel='<select class="st-sel" onchange="setSt(\''+s.id+'\',this.value);renderLoc()">'+Object.entries(ST_OPTS).map(([k,v])=>'<option value="'+k+'"'+(k===st?' selected':'')+'>'+v+'</option>').join('')+'</select>';
+      const freqSel=isOneOffLoc?'<span style="color:var(--txt2);font-size:11px">Nil (one-off)</span>':'<select class="st-sel" style="min-width:90px" onchange="setFreq(\''+s.id+'\',this.value);renderLoc()"><option value=""'+(freq===getFreq(s.id)&&!S.spFreq[s.id]&&!((S.locs.find(l=>l.id===s.id)||{}).freq)?' selected':'')+'>Default</option>'+Object.entries(FREQ_OPTS).map(([k,v])=>'<option value="'+k+'"'+(k===freq?' selected':'')+'>'+v.n+'</option>').join('')+'</select>';
+      const hasRecs=S.recs.some(r=>r.spId===s.id);
+      const delMsg=hasRecs?'Warning: This location has sampling records. Records will show the raw ID.':'Delete this location?';
+      // Area cell: clickable link if areaLink is set
+      const areaCell=s.areaLink?`<a href="${esc(s.areaLink)}" target="_blank" rel="noopener" style="color:var(--pri);text-decoration:underline">${esc(s.area||s.areaLink)}</a>`:esc(s.area);
+      return'<tr class="'+rowCls+'"><td>'+esc(s.id)+'</td><td>'+esc(s.n)+'</td><td>'+esc(s.bld)+'</td><td>'+areaCell+'</td><td>'+esc(wtName(s.wt))+'</td>'+
+        '<td>'+freqSel+'</td>'+
+        '<td style="font-size:11px">'+monthsDisplay+'</td>'+
+        '<td>'+stSel+'</td>'+
+        '<td><div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="editLoc(\''+s.id+'\')">Edit</button>'+(isUser?'<button class="btn btn-r btn-s del-btn" style="display:none" onclick="showDelModal(\''+delMsg+'\',function(){delLoc(\''+s.id+'\')})">Delete</button>':'')+'</div></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+function addLoc(e){
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const editId=document.getElementById('loc-edit-id').value;
+  const locId=(fd.get('lid')?fd.get('lid').trim():'');
+  const loc={id:locId,n:fd.get('ln')?fd.get('ln').trim():'',wt:fd.get('lwt'),bld:fd.get('lbld')?fd.get('lbld').trim():'',area:fd.get('larea')?fd.get('larea').trim():''};
+  const areaLink=fd.get('lareaLink')?fd.get('lareaLink').trim():'';
+  if(areaLink)loc.areaLink=areaLink;
+  const oneOff=document.getElementById('loneoff')?.checked;
+  if(oneOff){
+    loc.oneOff=true;
+    loc.freq='N';
+    delete loc.sampleMonths; // ignored when oneOff
+  }else{
+    delete loc.oneOff;
+    const freq=fd.get('lfreq');
+    if(freq)loc.freq=freq;
+    const months=fd.getAll('lmonths').map(Number);
+    if(months.length>0)loc.sampleMonths=months;
+  }
+  
+  if(editId){
+    // Editing existing location
+    if(locId!==editId){
+      // Point ID renamed - check new ID doesn't exist
+      if(allSP().some(s=>s.id===locId)){toast('Point ID already exists.','error');return}
+      // Update all references to the old ID
+      S.recs.forEach(r=>{if(r.spId===editId)r.spId=locId});
+      if(S.spStatus[editId]!==undefined){S.spStatus[locId]=S.spStatus[editId];delete S.spStatus[editId]}
+      if(S.spFreq[editId]!==undefined){S.spFreq[locId]=S.spFreq[editId];delete S.spFreq[editId]}
+      save();saveStatus();saveFreq();
+    }
+    const idx=S.locs.findIndex(l=>l.id===editId);
+    if(idx>=0){
+      S.locs[idx]={...S.locs[idx],...loc};
+      if(!areaLink)delete S.locs[idx].areaLink;
+      saveLocs();
+      toast('Location "'+loc.n+'" updated!','success');
+    }else{
+      // Built-in point being edited for the first time - add to custom locs
+      S.locs.push(loc);
+      saveLocs();
+      toast('Location "'+loc.n+'" customized!','success');
+    }
+  }else{
+    // Adding new location
+    if(allSP().some(s=>s.id===loc.id)){toast('Point ID already exists.','error');return}
+    S.locs.push(loc);saveLocs();
+    toast('Location "'+loc.n+'" added!','success');
+  }
+  e.target.reset();document.getElementById('loc-edit-id').value='';toggleLocForm();
+  renderLoc();popFilters();
+}
+function editLoc(id){
+  const sp=spById(id);if(!sp)return;
+  const loc=S.locs.find(l=>l.id===id);
+  // Populate form
+  document.getElementById('loc-edit-id').value=id;
+  document.getElementById('loc-lid').value=sp.id;
+  document.getElementById('loc-lid').disabled=false; // Allow renaming the Point ID
+  document.querySelector('[name="ln"]').value=sp.n;
+  document.querySelector('[name="lwt"]').value=sp.wt;
+  document.querySelector('[name="lbld"]').value=sp.bld||'';
+  document.querySelector('[name="larea"]').value=sp.area||'';
+  document.querySelector('[name="lareaLink"]').value=sp.areaLink||'';
+  document.querySelector('[name="lfreq"]').value=loc?.freq||getFreq(id)||'';
+  // Sample months (and one-off flag)
+  const isOneOff=!!loc?.oneOff;
+  const oneOffCb=document.getElementById('loneoff');
+  if(oneOffCb)oneOffCb.checked=isOneOff;
+  const sampleMonths=loc?.sampleMonths||[];
+  document.querySelectorAll('[name="lmonths"]').forEach(cb=>{cb.checked=!isOneOff&&(sampleMonths.length===0||sampleMonths.includes(Number(cb.value)));cb.disabled=isOneOff});
+  const allCb=document.getElementById('lmonths-all');
+  if(allCb)allCb.disabled=isOneOff;
+  // Force frequency to "Nil" and lock it for one-off points
+  const freqSel=document.getElementById('loc-freq');
+  if(freqSel){
+    if(isOneOff){
+      if(!Array.from(freqSel.options).some(o=>o.value==='N')){
+        const opt=document.createElement('option');opt.value='N';opt.textContent='Nil (one-off only)';freqSel.appendChild(opt);
+      }
+      freqSel.value='N';freqSel.disabled=true;
+    }else{freqSel.disabled=false}
+  }
+  updateMonthsAllState(); // Update the "Select All" checkbox state
+  // Update form title and button
+  document.getElementById('loc-form-title').textContent='Edit Sampling Point';
+  document.getElementById('loc-submit-btn').textContent='Update Location';
+  // Show form
+  document.getElementById('loc-add-form').classList.remove('hid');
+  document.getElementById('loc-add-btn').textContent='\u2212 Cancel';
+  document.getElementById('loc-add-btn').classList.replace('btn-p','btn-o');
+  // Scroll to form
+  document.getElementById('loc-add-form').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function delLoc(id){
+  S.locs=S.locs.filter(l=>l.id!==id);saveLocs();renderLoc();popFilters();toast('Location deleted.','success');
+}
+function toggleAllMonths(checked){
+  document.querySelectorAll('[name="lmonths"]').forEach(cb=>{cb.checked=checked});
+}
+function toggleOneOff(){
+  const oneOff=document.getElementById('loneoff')?.checked;
+  document.querySelectorAll('[name="lmonths"]').forEach(cb=>{cb.disabled=oneOff;if(oneOff)cb.checked=false});
+  const allCb=document.getElementById('lmonths-all');
+  if(allCb){allCb.disabled=oneOff;if(oneOff)allCb.checked=false}
+  const freqSel=document.getElementById('loc-freq');
+  if(freqSel){
+    if(oneOff){freqSel.value='N';freqSel.disabled=true}
+    else{if(freqSel.value==='N')freqSel.value='';freqSel.disabled=false}
+  }
+  updateMonthsAllState();
+}
+function updateMonthsAllState(){
+  const allMonths=document.querySelectorAll('[name="lmonths"]');
+  const checkedMonths=document.querySelectorAll('[name="lmonths"]:checked');
+  const allCheckbox=document.getElementById('lmonths-all');
+  if(allCheckbox){
+    allCheckbox.checked=allMonths.length>0&&allMonths.length===checkedMonths.length;
+  }
+}
+// ══════════ DETAIL ══════════
+function openDet(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  S.editId=id;const s=spById(r.spId);
+  document.getElementById('det-tt').textContent=s?s.n:r.spId;
+  // Show/hide edit button based on 24-hour rule
+  const editBtn=document.getElementById('edit-btn');
+  if(canEdit(r)){
+    editBtn.style.display='';
+    editBtn.title='';
+  }else{
+    editBtn.style.display='none';
+  }
+  const op=overallPass(r);
+  let h='<div class="dg">';
+  h+=ff('Sampling Date',fmtD(r.date))+ff('Water Type',wtName(r.wtId));
+  h+=ff('Bldg/Cat',s?s.bld:'')+ff('Area',s?(s.areaLink?`<a href="${esc(s.areaLink)}" target="_blank" rel="noopener" style="color:var(--pri);text-decoration:underline">${esc(s.area||s.areaLink)}</a>`:esc(s.area)):'');
+  h+=ff('Sampling Type',r.sType);
+  h+=ff('Report Number',r.rpt)+ff('Status',r.status);
+  h+=ff('Overall Result',`<span class="badge ${op==='Pass'?'b-pass':op==='Fail'?'b-fail':'b-pend'}">${op}</span>`);
+  if(r.created){
+    const createdDate=new Date(r.created);
+    const editUntil=new Date(createdDate.getTime()+24*60*60*1000);
+    const canEditNow=canEdit(r);
+    const editStatus=canEditNow?`<span style="color:var(--grn)">Editable until ${fmtD(editUntil.toISOString().slice(0,10))} ${editUntil.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span>`:`<span style="color:var(--red)">Edit expired</span>`;
+    h+=ff('Created',editStatus);
+  }
+  if(r.reportFile){
+    const fileSize=(r.reportFile.size/1024).toFixed(1);
+    let reportDisplay;
+    if(r.reportFile.data){
+      // Base64 data (not yet synced)
+      reportDisplay=`<a href="${r.reportFile.data}" download="${esc(r.reportFile.name)}" style="color:var(--pri);text-decoration:none;font-weight:600">📎 ${esc(r.reportFile.name)} (${fileSize} KB)</a>`;
+    }else if(r.reportFile.fileName){
+      // File saved to Reports folder
+      reportDisplay=`<span style="color:var(--grn)">📎 ${esc(r.reportFile.name)} (${fileSize} KB) - Saved to Reports folder</span>`;
+    }else{
+      reportDisplay=`<span style="color:var(--txt2)">📎 ${esc(r.reportFile.name)}</span>`;
+    }
+    const canEditRec=canEdit(r);
+    const deleteBtn=canEditRec?` <button type="button" onclick="deleteReportFile('${r.id}')" style="font-size:10px;padding:1px 6px;background:var(--card);border:1px solid var(--red);border-radius:3px;cursor:pointer;color:var(--red);margin-left:8px" title="Delete report file">✕</button>`:'';
+    h+=ff('Report File',reportDisplay+deleteBtn);
+  }
+  if(r.ca)h+=ff('Corrective Action',r.ca);
+  if(r.rmk)h+=`<div class="ff" style="grid-column:1/-1"><div class="fl">Remarks</div><div class="fv">${esc(r.rmk)}</div></div>`;
+  h+='</div>';
+  const entries=Object.entries(r.vals||{});
+  // Show all parameters (not just those with limits for this water type)
+  const allPids=getAllPM().map(p=>p.id);
+  // Count tested (including below RL)
+  const testedEntries=entries.filter(([,v])=>{const nv=normVal(v);return nv&&nv.tested});
+  const testedCount=testedEntries.length;
+  const totalCount=allPids.length;
+  h+=`<p style="font-size:11px;color:var(--txt2);margin:8px 0 4px">${testedCount} of ${totalCount} parameters tested</p>`;
+  if(testedEntries.length){
+    h+='<div class="dp"><div class="tw"><table><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Limit</th><th>Result</th></tr></thead><tbody>';
+    testedEntries.forEach(([pid,val])=>{
+      const nv=normVal(val);
+      const p=getAllPM().find(x=>x.id===pid);const lim=getLim(r.wtId,pid);
+      const ok=chkPass(pid,val,lim);
+      const limTxt=lim?(isRange(lim)?lim.split('-').join(' – '):(p?.strict?'< ':'≤ ')+lim):'—';
+      const resTxt=ok===null?'—':(ok?'<span class="badge b-pass">Pass</span>':'<span class="badge b-fail">FAIL</span>');
+      let valTxt;
+      if(nv.belowRL)valTxt='<span class="brl-badge">&lt; RL</span>';
+      else if(nv.value==='detected')valTxt='<strong style="color:var(--red)">Detected</strong>';
+      else if(nv.value==='not_detected')valTxt='<strong style="color:var(--grn)">Not Detected</strong>';
+      else if(nv.value!=null)valTxt='<strong>'+esc(String(nv.value))+'</strong>';
+      else valTxt='—';
+      h+=`<tr><td>${esc(p?p.n:pid)}</td><td>${valTxt}</td><td>${esc(p?p.u:'')}</td><td>${esc(limTxt)}</td><td>${resTxt}</td></tr>`;
+    });
+    h+='</tbody></table></div>';
+  }
+  // Show untested parameters
+  const untested=allPids.filter(pid=>!entries.find(([k])=>k===pid));
+  if(untested.length){
+    h+='<div style="margin-top:8px"><p style="font-size:11px;color:var(--txt2);margin-bottom:4px">Not tested:</p>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+    untested.forEach(pid=>{
+      const p=getAllPM().find(x=>x.id===pid);
+      h+=`<span style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:8px;color:var(--txt2)">${esc(p?p.n:pid)}</span>`;
+    });
+    h+='</div></div>';
+  }
+  document.getElementById('det-ct').innerHTML=h;
+  document.getElementById('det-mo').classList.remove('hid');
+}
+function closeDet(){document.getElementById('det-mo').classList.add('hid');S.editId=null}
+function ff(l,v){return`<div class="ff"><div class="fl">${l}</div><div class="fv">${v||'—'}</div></div>`}
+// ══════════ EXPORT ══════════
+function buildExp(){
+  const hd=['Date','SamplingPoint','Building','Area','WaterType','SamplingType','ReportNumber','Status','CorrectiveAction','Remarks'];
+  getAllPM().forEach(p=>{hd.push(p.n);hd.push(p.n+' BelowRL')});
+  hd.push('vals_json'); // Add JSON column for Power Automate
+  // Get date filter values
+  const fromDate=document.getElementById('exp-from')?.value||'';
+  const toDate=document.getElementById('exp-to')?.value||'';
+  // Filter records by date range
+  const filteredRecs=S.recs.filter(r=>{
+    if(fromDate&&r.date<fromDate)return false;
+    if(toDate&&r.date>toDate)return false;
+    return true;
+  });
+  const rows=filteredRecs.map(r=>{const s=spById(r.spId);
+    const row=[r.date,r.spId,s?s.bld:'',s?s.area:'',wtName(r.wtId),r.sType,r.rpt,r.status,r.ca,r.rmk];
+    getAllPM().forEach(p=>{
+      const nv=normVal(r.vals?.[p.id]);
+      if(!nv||!nv.tested){row.push('');row.push('')}
+      else if(nv.belowRL){row.push('<RL');row.push('Yes')}
+      else{row.push(nv.value!=null?nv.value:'');row.push('No')}
+    });
+    // Build vals JSON for Power Automate (compressed)
+    row.push(JSON.stringify(compressVals(r.vals)));
+    return row;
+  });
+  return{hd,rows,count:filteredRecs.length};
+}
+function expXlsx(){
+  if(!S.recs.length){toast('No records.','error');return}
+  const{hd,rows,count}=buildExp();
+  if(!count){toast('No records in selected date range.','error');return}
+  const data=[hd,...rows];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  // Create a proper Excel table for Power Automate
+  const ref=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:data.length-1,c:hd.length-1}});
+  ws['!table']={
+    ref:ref,
+    name:'Records',
+    displayName:'Records',
+    headerRowCount:1,
+    totalsRowCount:0
+  };
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Records');
+  XLSX.writeFile(wb,'WSP_Records_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast(count+' record(s) exported!','success');
+}
+function expCsv(){
+  if(!S.recs.length){toast('No records.','error');return}
+  const{hd,rows,count}=buildExp();
+  if(!count){toast('No records in selected date range.','error');return}
+  const csv=[hd,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  dl(csv,'WSP_Sampling_'+new Date().toISOString().slice(0,10)+'.csv','text/csv');
+  toast(count+' record(s) exported!','success');
+}
+function dl(c,n,t){const b=new Blob([c],{type:t});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();URL.revokeObjectURL(a.href)}
+// ══════════ IMPORT ══════════
+function prevImp(e){
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=function(ev){
+    try{
+      const data=new Uint8Array(ev.target.result);const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json(ws,{header:1});
+      if(json.length<2){toast('Empty file.','error');return}
+      const hd=json[0].map(h=>String(h).trim());const rows=json.slice(1).filter(r=>r.some(c=>c!=null&&c!==''));
+      S.impData={hd,rows};
+      let h=`<p style="margin-bottom:6px"><strong>${rows.length}</strong> records found.</p>`;
+      h+='<div class="tw" style="max-height:250px"><table><thead><tr>'+hd.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr></thead><tbody>';
+      rows.slice(0,8).forEach(r=>{h+='<tr>'+hd.map((_,i)=>`<td>${esc(String(r[i]??''))}</td>`).join('')+'</tr>'});
+      if(rows.length>8)h+=`<tr><td colspan="${hd.length}" style="text-align:center;color:var(--txt2)">... and ${rows.length-8} more</td></tr>`;
+      h+='</tbody></table></div>';
+      document.getElementById('imp-prev').innerHTML=h;
+      document.getElementById('imp-act').classList.remove('hid');
+    }catch(err){toast('Error: '+err.message,'error')}
+  };rd.readAsArrayBuffer(f);
+}
+function confImp(){
+  if(!S.impData)return;const{hd,rows}=S.impData;
+  const fm={};hd.forEach((h,i)=>{const l=h.toLowerCase();
+    if(l.includes('date')&&!l.includes('planned')&&!l.includes('report'))fm.date=i;
+    else if(l.includes('samplingpoint')||l==='sp')fm.spId=i;
+    else if(l.includes('watertype')||l.includes('water type'))fm.wtId=i;
+    else if(l.includes('report')&&l.includes('number'))fm.rpt=i;
+    else if(l.includes('status'))fm.status=i;
+    else if(l.includes('corrective'))fm.ca=i;
+    else if(l.includes('remark'))fm.rmk=i;
+    else if(l.includes('sampling')&&l.includes('type'))fm.sType=i;
+  });
+  const pCols=[];const fIdx=new Set(Object.values(fm));
+  hd.forEach((h,i)=>{if(!fIdx.has(i)){const p=getAllPM().find(x=>x.n.toLowerCase()===h.toLowerCase().replace(/\s*\([^)]*\)/,''));if(p)pCols.push({i,pid:p.id})}});
+  let n=0;rows.forEach(r=>{
+    const rec={id:uid(),vals:{}};
+    Object.entries(fm).forEach(([k,idx])=>{rec[k]=r[idx]!=null?String(r[idx]):''});
+    if(!rec.date&&!rec.spId)return;
+    if(!rec.wtId){const s=spById(rec.spId);rec.wtId=s?s.wt:'DRINKING'}
+    pCols.forEach(({i,pid})=>{const v=r[i];if(v!=null&&v!=='')rec.vals[pid]=isNaN(parseFloat(v))?String(v):parseFloat(v)});
+    S.recs.push(rec);n++;
+  });
+  save();S.impData=null;document.getElementById('imp-prev').innerHTML='';document.getElementById('imp-act').classList.add('hid');document.getElementById('imp-f').value='';
+  toast(n+' records imported!','success');renderDash();
+}
+function cancImp(){S.impData=null;document.getElementById('imp-prev').innerHTML='';document.getElementById('imp-act').classList.add('hid');document.getElementById('imp-f').value=''}
+// ══════════ LOCATION EXPORT/IMPORT ══════════
+function buildLocExp(){
+  const hd=['Point ID','Name','Building','Area','Area Link','Water Type','Frequency','Sample Months','Status','Source'];
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const rows=allSP().map(s=>{
+    const isUser=S.locs.some(u=>u.id===s.id);
+    const wt=WT[s.wt];
+    const loc=S.locs.find(l=>l.id===s.id);
+    const sampleMonths=loc?.sampleMonths||[];
+    const monthsStr=sampleMonths.length>0?sampleMonths.map(m=>monthNames[m-1]).join(', '):'All';
+    return[s.id,s.n,s.bld,s.area||'',s.areaLink||'',wt?wt.n:s.wt,freqName(getFreq(s.id)),monthsStr,ST_OPTS[getSt(s.id)]||'Active',isUser?'Custom':'Built-in'];
+  });
+  return{hd,rows};
+}
+function expLocXlsx(){
+  const{hd,rows}=buildLocExp();
+  const data=[hd,...rows];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  // Create a proper Excel table for Power Automate
+  const ref=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:data.length-1,c:hd.length-1}});
+  ws['!table']={
+    ref:ref,
+    name:'Locations',
+    displayName:'Locations',
+    headerRowCount:1,
+    totalsRowCount:0
+  };
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Locations');
+  XLSX.writeFile(wb,'WSP_Locations_'+new Date().toISOString().slice(0,10)+'.xlsx');toast('Locations exported!','success');
+}
+function expLocCsv(){
+  const{hd,rows}=buildLocExp();
+  const csv=[hd,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  dl(csv,'WSP_Locations_'+new Date().toISOString().slice(0,10)+'.csv','text/csv');toast('Locations exported!','success');
+}
+let impLocData=null;
+function prevImpLoc(e){
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=function(ev){
+    try{
+      const data=new Uint8Array(ev.target.result);const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json(ws,{header:1});
+      if(json.length<2){toast('Empty file.','error');return}
+      const hd=json[0].map(h=>String(h).trim());const rows=json.slice(1).filter(r=>r.some(c=>c!=null&&c!==''));
+      impLocData={hd,rows};
+      // Count new vs existing
+      let newCnt=0,updCnt=0;
+      rows.forEach(r=>{
+        const id=r[0];if(!id)return;
+        if(allSP().some(s=>s.id===String(id).trim()))updCnt++;else newCnt++;
+      });
+      let h=`<p style="margin-bottom:6px"><strong>${rows.length}</strong> locations found: <span style="color:var(--grn)">${newCnt} new</span>, <span style="color:var(--pri)">${updCnt} existing (status update)</span></p>`;
+      h+='<div class="tw" style="max-height:250px"><table><thead><tr>'+hd.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr></thead><tbody>';
+      rows.slice(0,8).forEach(r=>{h+='<tr>'+hd.map((_,i)=>`<td>${esc(String(r[i]??''))}</td>`).join('')+'</tr>'});
+      if(rows.length>8)h+=`<tr><td colspan="${hd.length}" style="text-align:center;color:var(--txt2)">... and ${rows.length-8} more</td></tr>`;
+      h+='</tbody></table></div>';
+      document.getElementById('imp-loc-prev').innerHTML=h;
+      document.getElementById('imp-loc-act').classList.remove('hid');
+    }catch(err){toast('Error: '+err.message,'error')}
+  };rd.readAsArrayBuffer(f);
+}
+function confImpLoc(){
+  if(!impLocData)return;const{hd,rows}=impLocData;
+  // Map columns by header
+  const fm={};hd.forEach((h,i)=>{const l=h.toLowerCase();
+    if(l.includes('point')&&l.includes('id')||l==='id')fm.id=i;
+    else if(l.includes('name')||l==='display name')fm.n=i;
+    else if(l.includes('building'))fm.bld=i;
+    else if(l.includes('link'))fm.link=i;
+    else if(l.includes('area'))fm.area=i;
+    else if(l.includes('water')&&l.includes('type'))fm.wt=i;
+    else if(l.includes('freq'))fm.freq=i;
+    else if(l.includes('month'))fm.months=i;
+    else if(l.includes('status'))fm.st=i;
+  });
+  // Fallback: if no ID column found, use first column
+  if(fm.id===undefined)fm.id=0;
+  if(fm.n===undefined)fm.n=1;
+  if(fm.bld===undefined)fm.bld=2;
+  if(fm.area===undefined)fm.area=3;
+  // Map water type name to ID
+  const wtMap={};Object.entries(WT).forEach(([k,v])=>{wtMap[v.n.toLowerCase()]=k;wtMap[k.toLowerCase()]=k});
+  // Map status name to key
+  const stMap={};Object.entries(ST_OPTS).forEach(([k,v])=>{stMap[v.toLowerCase()]=k;stMap[k.toLowerCase()]=k});
+  // Map frequency name to key
+  const freqMap={};Object.entries(FREQ_OPTS).forEach(([k,v])=>{freqMap[v.n.toLowerCase()]=k;freqMap[k.toLowerCase()]=k});
+  freqMap['annual']='Y';freqMap['yearly']='Y';freqMap['default']='';
+  let added=0,updated=0;
+  rows.forEach(r=>{
+    const id=r[fm.id]!=null?String(r[fm.id]).trim():'';
+    if(!id)return;
+    const name=r[fm.n]!=null?String(r[fm.n]).trim():'';
+    const bld=r[fm.bld]!=null?String(r[fm.bld]).trim():'';
+    const area=r[fm.area]!=null?String(r[fm.area]).trim():'';
+    // Area link
+    let areaLink='';
+    if(fm.link!==undefined&&r[fm.link]!=null)areaLink=String(r[fm.link]).trim();
+    // Water type
+    let wtId='';
+    if(fm.wt!==undefined&&r[fm.wt]!=null){
+      const wtStr=String(r[fm.wt]).trim().toLowerCase();
+      wtId=wtMap[wtStr]||'';
+    }
+    // Status
+    let st='active';
+    if(fm.st!==undefined&&r[fm.st]!=null){
+      const stStr=String(r[fm.st]).trim().toLowerCase();
+      st=stMap[stStr]||'active';
+    }
+    // Frequency
+    let freq='';
+    if(fm.freq!==undefined&&r[fm.freq]!=null){
+      const freqStr=String(r[fm.freq]).trim().toLowerCase();
+      freq=freqMap[freqStr]||'';
+    }
+    // Sample months (e.g. "Jul" or "Jan, Mar" or "All")
+    let sampleMonths=[];
+    if(fm.months!==undefined&&r[fm.months]!=null){
+      const monStr=String(r[fm.months]).trim().toLowerCase();
+      const monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+      if(monStr&&monStr!=='all'){
+        sampleMonths=monStr.split(/[,;]/).map(m=>{
+          const idx=monthNames.findIndex(nm=>m.trim().startsWith(nm));
+          return idx>=0?idx+1:NaN;
+        }).filter(m=>!isNaN(m));
+      }
+    }
+    // Check if existing
+    const existing=allSP().find(s=>s.id===id);
+    if(existing){
+      // Update status, frequency, and sample months
+      setSt(id,st);if(freq)setFreq(id,freq);
+      const locIdx=S.locs.findIndex(l=>l.id===id);
+      if(locIdx>=0){
+        S.locs[locIdx].sampleMonths=sampleMonths;
+        if(areaLink)S.locs[locIdx].areaLink=areaLink;
+      }else if(sampleMonths.length>0||areaLink){
+        // Built-in point with sample months or link - add a customization entry
+        const cust={id,n:existing.n,wt:existing.wt,bld:existing.bld,area:existing.area,sampleMonths};
+        if(areaLink)cust.areaLink=areaLink;
+        S.locs.push(cust);
+      }
+      updated++;
+    }else{
+      // Add new custom location
+      if(!name||!bld||!wtId)return; // skip incomplete rows
+      const newLoc={id,n:name,wt:wtId,bld,area};
+      if(freq)newLoc.freq=freq;
+      if(sampleMonths.length>0)newLoc.sampleMonths=sampleMonths;
+      if(areaLink)newLoc.areaLink=areaLink;
+      S.locs.push(newLoc);added++;
+      setSt(id,st);if(freq)setFreq(id,freq);
+    }
+  });
+  // Deduplicate S.locs in case the import file had duplicate id rows
+  const _seen=new Set();
+  S.locs=S.locs.filter(l=>{if(_seen.has(l.id))return false;_seen.add(l.id);return true});
+  saveLocs();
+  toast(`Imported: ${added} new, ${updated} status updates`,'success');
+  impLocData=null;
+  document.getElementById('imp-loc-f').value='';
+  document.getElementById('imp-loc-prev').innerHTML='';
+  document.getElementById('imp-loc-act').classList.add('hid');
+  renderLoc();popFilters();renderDash();
+}
+function cancImpLoc(){
+  impLocData=null;
+  document.getElementById('imp-loc-f').value='';
+  document.getElementById('imp-loc-prev').innerHTML='';
+  document.getElementById('imp-loc-act').classList.add('hid');
+}
+// ══════════ SCHEDULE EXPORT/IMPORT ══════════
+function buildSchedExp(){
+  const hd=['SamplingPoint','Name','WaterType','Building','Area','Frequency','Status','SampleMonths'];
+  // Combine built-in SP and custom locations
+  const allLocs=[];
+  // Add built-in sampling points
+  SP.forEach(sp=>{
+    const customLoc=S.locs.find(l=>l.id===sp.id);
+    allLocs.push({
+      id:sp.id,
+      n:sp.n,
+      wt:sp.wt,
+      bld:customLoc?.bld||sp.bld||'',
+      area:customLoc?.area||sp.area||'',
+      freq:getFreq(sp.id),
+      sampleMonths:customLoc?.sampleMonths||[],
+      spStatus:S.spStatus[sp.id]||'active'
+    });
+  });
+  // Add custom locations not in SP
+  S.locs.forEach(l=>{
+    if(!SP.find(sp=>sp.id===l.id)){
+      allLocs.push(l);
+    }
+  });
+  const rows=allLocs.map(l=>{
+    const freq=getFreq(l.id);
+    const status=S.spStatus[l.id]||l.spStatus||'active';
+    const months=l.sampleMonths?l.sampleMonths.join(';'):'';
+    return[l.id,l.n,wtName(l.wt),l.bld||'',l.area||'',freq?freqName(freq):'Default',ST_OPTS[status]||status,months];
+  });
+  return{hd,rows};
+}
+function expSchedXlsx(){
+  const{hd,rows}=buildSchedExp();
+  if(!rows.length){toast('No locations.','error');return}
+  const data=[hd,...rows];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const ref=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:data.length-1,c:hd.length-1}});
+  ws['!table']={ref:ref,name:'Schedule',displayName:'Schedule',headerRowCount:1,totalsRowCount:0};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Schedule');
+  XLSX.writeFile(wb,'WSP_Schedule_'+new Date().toISOString().slice(0,10)+'.xlsx');toast('Schedule exported!','success');
+}
+function expSchedCsv(){
+  const{hd,rows}=buildSchedExp();
+  if(!rows.length){toast('No locations.','error');return}
+  const csv=[hd,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  dl(csv,'WSP_Schedule_'+new Date().toISOString().slice(0,10)+'.csv','text/csv');toast('Schedule exported!','success');
+}
+let impSchedData=null;
+function prevImpSched(event){
+  const f=event.target.files[0];if(!f)return;
+  const rd=new FileReader();rd.onload=function(ev){
+    try{
+      const wb=XLSX.read(ev.target.result);
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1});
+      if(rows.length<2){toast('No data in file.','error');return}
+      impSchedData=rows;
+      const prev=document.getElementById('imp-sched-prev');
+      let h='<table style="font-size:11px;width:100%;margin:10px 0"><tr style="background:var(--pri-l)">';
+      rows[0].forEach(c=>{h+='<th style="padding:4px">'+esc(c||'')+'</th>'});
+      h+='</tr>';
+      rows.slice(1,6).forEach(r=>{h+='<tr>';r.forEach(c=>{h+='<td style="padding:4px">'+esc(c||'')+'</td>'});h+='</tr>'});
+      if(rows.length>6)h+='<tr><td colspan="'+rows[0].length+'" style="text-align:center;color:var(--txt2)">...and '+(rows.length-6)+' more rows</td></tr>';
+      h+='</table>';
+      prev.innerHTML=h;
+      document.getElementById('imp-sched-act').classList.remove('hid');
+    }catch(err){toast('Invalid file.','error')}
+  };
+  if(f.name.endsWith('.csv'))rd.readAsText(f);
+  else rd.readAsArrayBuffer(f);
+}
+function confImpSched(){
+  if(!impSchedData){toast('No data.','error');return}
+  const rows=impSchedData;
+  // Detect column mapping
+  const hd=rows[0].map(h=>String(h||'').toLowerCase());
+  const fm={};
+  hd.forEach((h,i)=>{
+    if(h.includes('sampling')&&h.includes('point'))fm.id=i;
+    else if(h.includes('id')&&fm.id===undefined)fm.id=i;
+    else if(h.includes('name')&&h.includes('sampling'))fm.n=i;
+    else if(h.includes('freq'))fm.freq=i;
+    else if(h.includes('status'))fm.st=i;
+    else if(h.includes('month'))fm.months=i;
+  });
+  if(fm.id===undefined)fm.id=0;
+  // Map frequency name to key
+  const freqMap={};Object.entries(FREQ_OPTS).forEach(([k,v])=>{freqMap[v.n.toLowerCase()]=k;freqMap[k.toLowerCase()]=k;freqMap['default']=''});
+  // Map status name to key
+  const stMap={};Object.entries(ST_OPTS).forEach(([k,v])=>{stMap[v.toLowerCase()]=k;stMap[k.toLowerCase()]=k});
+  let updated=0;
+  rows.slice(1).forEach(r=>{
+    const id=r[fm.id]!=null?String(r[fm.id]).trim():'';
+    if(!id)return;
+    // Frequency
+    if(fm.freq!==undefined&&r[fm.freq]!=null){
+      const freqStr=String(r[fm.freq]).trim().toLowerCase();
+      const freqKey=freqMap[freqStr];
+      if(freqKey){S.spFreq[id]=freqKey;updated++}
+      else if(freqStr==='default'||freqStr===''){delete S.spFreq[id];updated++}
+    }
+    // Status
+    if(fm.st!==undefined&&r[fm.st]!=null){
+      const stStr=String(r[fm.st]).trim().toLowerCase();
+      const stKey=stMap[stStr];
+      if(stKey){S.spStatus[id]=stKey;updated++}
+    }
+    // Sample months
+    if(fm.months!==undefined&&r[fm.months]!=null){
+      const loc=S.locs.find(l=>l.id===id);
+      if(loc){
+        const monthStr=String(r[fm.months]).trim();
+        if(monthStr){
+          loc.sampleMonths=monthStr.split(';').map(Number).filter(n=>n>=1&&n<=12);
+        }else{
+          loc.sampleMonths=[];
+        }
+      }
+    }
+  });
+  saveFreq();saveStatus();saveLocs();
+  toast('Schedule updated! ('+updated+' settings applied)','success');
+  impSchedData=null;
+  document.getElementById('imp-sched-prev').innerHTML='';
+  document.getElementById('imp-sched-act').classList.add('hid');
+  document.getElementById('imp-sched-f').value='';
+}
+function cancImpSched(){
+  impSchedData=null;
+  document.getElementById('imp-sched-prev').innerHTML='';
+  document.getElementById('imp-sched-act').classList.add('hid');
+  document.getElementById('imp-sched-f').value='';
+}
+// ══════════ BACKUP ══════════
+function backup(){
+  // Always include all point IDs in spStatus (with 'active' as default) for downstream tools
+  const allSPIds = [...new Set([
+    ...SP.map(s => s.id),
+    ...S.locs.map(l => l.id)
+  ])];
+  const fullSpStatus = {};
+  allSPIds.forEach(id => { fullSpStatus[id] = S.spStatus[id] || 'active'; });
+  const recsWithStatus = S.recs.map(r => Object.assign({}, r, { spStatus: S.spStatus[r.spId] || 'active', vals: compressVals(r.vals) }));
+  const locsWithStatus = S.locs.map(l => ({...l, spStatus: l.spStatus || S.spStatus[l.id] || 'active'}));
+  const d = { recs: recsWithStatus, locs: locsWithStatus, spStatus: fullSpStatus, spFreq: S.spFreq, customParams: S.customParams, exported: new Date().toISOString() };
+  dl(JSON.stringify(d, null, 2), 'WSP_Backup_' + new Date().toISOString().slice(0, 10) + '.json', 'application/json');
+  toast('Backup downloaded!', 'success');
+}
+function restore(e){
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();rd.onload=function(ev){
+    try{
+      const d=JSON.parse(ev.target.result);
+      // Accept both backup format (recs/locs) and sync format (records/locations)
+      const recs=d.recs||d.records;
+      const locs=d.locs||d.locations;
+      if(!recs)throw new Error('Invalid');
+      if(!confirm('Restore '+recs.length+' records'+(locs?' and '+locs.length+' locations':'')+'? This replaces all current data.'))return;
+      S.recs=recs;save();
+      if(locs){S.locs=locs;saveLocs()}
+      if(d.spStatus){S.spStatus=d.spStatus;saveStatus()}
+      if(d.spFreq){S.spFreq=d.spFreq;saveFreq()}
+      if(d.customParams){S.customParams=d.customParams;saveParams()}
+      if(d.customPresets){S.customPresets=d.customPresets;savePresets()}
+      if(d.customLims){S.customLims=d.customLims;try{localStorage.setItem(LS_LIMS,JSON.stringify(S.customLims))}catch(e){}}
+      renderDash();renderLoc();renderParam();toast('Restored!','success');
+    }catch(err){toast('Invalid file.','error')}
+  };rd.readAsText(f);e.target.value='';
+}
+function clearAll(){
+  if(!isAdmin){toast('Admin mode required to clear all data','error');return}
+  if(!confirm('Delete ALL records and custom locations?'))return;if(!confirm('Are you sure?'))return;
+  S.recs=[];S.locs=[];save();saveLocs();renderDash();toast('Cleared.','success');
+}
+// ══════════ THEME TOGGLE ══════════
+function toggleTheme(){
+  var isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  if(isDark){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('wsp-theme','light');
+    document.getElementById('theme-toggle-btn').textContent='☀️';
+  }else{
+    document.documentElement.setAttribute('data-theme','dark');
+    localStorage.setItem('wsp-theme','dark');
+    document.getElementById('theme-toggle-btn').textContent='🌙';
+  }
+}
+// Set initial toggle icon based on saved theme
+(function(){
+  var t=localStorage.getItem('wsp-theme');
+  var btn=document.getElementById('theme-toggle-btn');
+  if(btn&&t==='dark')btn.textContent='🌙';
+})();
+// ══════════ START ══════════
+init();
+</script>
+</body>
+</html>
