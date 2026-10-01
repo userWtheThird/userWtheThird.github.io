@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A private, in-browser display screen equipment user assessment based on the Cap. 509B working-time criteria.">
+  <title>DSE User Assessment | HSEO Programs</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5f6d82;
+      --line: #dbe2ea;
+      --page: #f3f6f9;
+      --card: #ffffff;
+      --navy: #173a5e;
+      --blue: #1b73b8;
+      --blue-pale: #eaf4fc;
+      --green: #137a52;
+      --green-pale: #e9f7f0;
+      --amber: #9a5b00;
+      --amber-pale: #fff5dc;
+      --red: #b42318;
+      --red-pale: #feeeec;
+      --radius: 12px;
+      --shadow: 0 8px 24px rgba(23, 32, 51, .07);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--page); color: var(--ink); font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { background: var(--navy); color: #fff; padding: 14px 24px; }
+    .topbar-inner { max-width: 980px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+    .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; }
+    .back { color: #fff; text-decoration: none; font-size: 14px; opacity: .9; }
+    .back:hover { opacity: 1; text-decoration: underline; }
+    main { width: min(980px, calc(100% - 32px)); margin: 40px auto 56px; }
+    .hero { margin-bottom: 24px; }
+    .eyebrow { margin: 0 0 6px; color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.12; letter-spacing: -.03em; }
+    .lede { max-width: 720px; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+    .privacy { display: flex; align-items: flex-start; gap: 10px; margin: 24px 0; padding: 15px 17px; border: 1px solid #b9d8ef; border-radius: var(--radius); background: var(--blue-pale); color: #174c74; }
+    .privacy strong { display: block; margin-bottom: 2px; }
+    .privacy-icon { flex: 0 0 auto; font-size: 20px; line-height: 1.2; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); gap: 24px; align-items: start; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .form-card { padding: 26px; }
+    h2 { margin: 0; font-size: 21px; line-height: 1.25; }
+    .section-copy { margin: 7px 0 22px; color: var(--muted); font-size: 14px; }
+    .person-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; }
+    label { display: block; color: #36465d; font-size: 13px; font-weight: 700; }
+    input[type="text"], input[type="date"], input[type="time"] { width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; color: var(--ink); border: 1px solid #bbc7d5; border-radius: 8px; background: #fff; }
+    input:focus { outline: 3px solid rgba(27,115,184,.2); border-color: var(--blue); }
+    .period-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 10px; }
+    .period-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .periods { display: grid; gap: 10px; }
+    .period { display: grid; grid-template-columns: minmax(150px, 1fr) 130px 130px auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfd; }
+    .period-name input { margin-top: 6px; }
+    .remove { width: 38px; min-height: 42px; padding: 0; border: 1px solid #efc1bd; border-radius: 8px; color: var(--red); background: #fff; font-size: 20px; line-height: 1; }
+    .remove:hover { background: var(--red-pale); }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .button { min-height: 42px; padding: 9px 14px; border: 1px solid transparent; border-radius: 8px; font-weight: 800; }
+    .button-primary { background: var(--blue); color: #fff; }
+    .button-primary:hover { background: #155d95; }
+    .button-secondary { border-color: #b8c6d5; background: #fff; color: var(--ink); }
+    .button-secondary:hover { background: #f5f8fa; }
+    .button-danger { border-color: #efc1bd; background: #fff; color: var(--red); }
+    .button-danger:hover { background: var(--red-pale); }
+    .criteria { margin-top: 25px; padding-top: 22px; border-top: 1px solid var(--line); }
+    .criteria h3 { margin: 0 0 7px; font-size: 15px; }
+    .criteria p { margin: 0; color: var(--muted); font-size: 13px; }
+    .summary { position: sticky; top: 20px; padding: 24px; }
+    .result { margin-top: 18px; padding: 18px; border: 1px solid #efd18a; border-radius: 10px; background: var(--amber-pale); }
+    .result.user { border-color: #aadcc5; background: var(--green-pale); }
+    .result.invalid { border-color: #efc1bd; background: var(--red-pale); }
+    .result-label { margin: 0 0 5px; color: var(--amber); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .result.user .result-label { color: var(--green); }
+    .result.invalid .result-label { color: var(--red); }
+    .result h3 { margin: 0; font-size: 21px; line-height: 1.2; }
+    .result p { margin: 8px 0 0; color: #46566b; font-size: 14px; }
+    .metrics { display: grid; gap: 1px; margin: 18px 0 0; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--line); }
+    .metric { padding: 12px 14px; background: #fff; }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 2px; font-size: 19px; }
+    .notice { margin: 18px 0 0; color: var(--muted); font-size: 12px; }
+    .error { min-height: 20px; margin: 10px 0 0; color: var(--red); font-size: 13px; font-weight: 600; }
+    footer { max-width: 980px; margin: 0 auto; padding: 0 16px 28px; color: var(--muted); font-size: 12px; text-align: center; }
+
+    @media (max-width: 760px) {
+      .topbar { padding: 12px 16px; }
+      main { width: min(100% - 24px, 980px); margin-top: 28px; }
+      .grid { grid-template-columns: 1fr; }
+      .summary { position: static; }
+      .person-grid { grid-template-columns: 1fr; }
+      .period { grid-template-columns: 1fr 1fr 38px; }
+      .period-name { grid-column: 1 / -1; }
+    }
+
+    @media print {
+      @page { size: A4; margin: 16mm; }
+      body { background: #fff; font-size: 11pt; }
+      .topbar, .button-row, .remove, .privacy, footer { display: none !important; }
+      main { width: auto; margin: 0; }
+      .hero { margin-bottom: 16px; }
+      h1 { font-size: 26pt; }
+      .lede { font-size: 11pt; }
+      .grid { display: block; }
+      .form-card, .summary { padding: 0; border: 0; box-shadow: none; }
+      .summary { margin-top: 18px; }
+      .period { break-inside: avoid; }
+      .period-name input, input[type="text"], input[type="date"], input[type="time"] { border: 0; padding: 2px 0; min-height: auto; appearance: none; }
+      .criteria { display: block; }
+      .notice { color: #46566b; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">▣</span> HSEO Programs</div>
+      <a class="back" href="/">← Back to portfolio</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">Display Screen Equipment</p>
+      <h1 id="page-title">DSE User Assessment</h1>
+      <p class="lede">Record a typical working day to help determine whether a person meets the DSE-user working-time criteria in Cap. 509B.</p>
+    </section>
+
+    <aside class="privacy" aria-label="Privacy notice">
+      <div class="privacy-icon" aria-hidden="true">🔒</div>
+      <div><strong>Your data is not saved.</strong> This assessment runs only in your browser. The information entered is not stored, transmitted, or retained after you leave or refresh this page. Use the PDF export if you need a record.</div>
+    </aside>
+
+    <div class="grid">
+      <section class="card form-card" aria-labelledby="schedule-title">
+        <h2 id="schedule-title">Working-day schedule</h2>
+        <p class="section-copy">Enter the periods spent working with display screen equipment. The first two periods represent a usual morning and afternoon schedule; add any other DSE work periods as needed.</p>
+
+        <div class="person-grid">
+          <label>Person assessed (optional)
+            <input id="personName" type="text" autocomplete="off" placeholder="Name or reference">
+          </label>
+          <label>Assessment date
+            <input id="assessmentDate" type="date">
+          </label>
+        </div>
+
+        <div class="period-head">
+          <div>
+            <h2 style="font-size:17px">DSE work periods</h2>
+            <p>A period ends when DSE work stops; breaks are not included.</p>
+          </div>
+        </div>
+
+        <div class="periods" id="periods" aria-live="polite"></div>
+        <p class="error" id="errorMessage" role="alert"></p>
+
+        <div class="button-row">
+          <button class="button button-secondary" type="button" id="addPeriod">+ Add another work period</button>
+          <button class="button button-primary" type="button" id="exportPdf">Export assessment to PDF</button>
+          <button class="button button-danger" type="button" id="clearForm">Clear all</button>
+        </div>
+
+        <div class="criteria">
+          <h3>Assessment criterion</h3>
+          <p>For this tool, a DSE user is a person who works continuously for <strong>4 hours or more</strong>, or cumulatively for <strong>6 hours or more daily</strong>, with display screen equipment. This is an aid to assessment and does not replace organisational or legal advice.</p>
+        </div>
+      </section>
+
+      <aside class="card summary" aria-labelledby="result-title">
+        <h2 id="result-title">Assessment result</h2>
+        <div class="result" id="resultBox">
+          <p class="result-label" id="resultLabel">Awaiting schedule</p>
+          <h3 id="resultTitle">Enter valid work times</h3>
+          <p id="resultExplanation">The assessment will update as you add DSE work periods.</p>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span>Longest continuous period</span><strong id="longestValue">—</strong></div>
+          <div class="metric"><span>Cumulative DSE work</span><strong id="totalValue">—</strong></div>
+          <div class="metric"><span>Periods recorded</span><strong id="periodCount">0</strong></div>
+        </div>
+        <p class="notice">“Continuous” is assessed from each uninterrupted period you enter. Add separate periods to record breaks in DSE work.</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer>HSEO Programs · DSE User Assessment · Data entered on this page is not saved.</footer>
+  <iframe id="printFrame" title="DSE assessment PDF export" aria-hidden="true" style="position:fixed;width:1px;height:1px;right:0;bottom:0;border:0;opacity:0;pointer-events:none"></iframe>
+
+  <script>
+    const periods = document.getElementById('periods');
+    const personName = document.getElementById('personName');
+    const assessmentDate = document.getElementById('assessmentDate');
+    const errorMessage = document.getElementById('errorMessage');
+    const resultBox = document.getElementById('resultBox');
+    const resultLabel = document.getElementById('resultLabel');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultExplanation = document.getElementById('resultExplanation');
+    const longestValue = document.getElementById('longestValue');
+    const totalValue = document.getElementById('totalValue');
+    const periodCount = document.getElementById('periodCount');
+
+    const initialPeriods = [
+      { name: 'Morning DSE work', start: '09:00', end: '13:00', removable: false },
+      { name: 'Afternoon DSE work', start: '14:00', end: '18:00', removable: false }
+    ];
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+    }
+
+    function formatMinutes(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const remaining = minutes % 60;
+      if (!hours) return `${remaining} min`;
+      return remaining ? `${hours} hr ${remaining} min` : `${hours} hr`;
+    }
+
+    function toMinutes(time) {
+      if (!/^\d{2}:\d{2}$/.test(time)) return null;
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function createPeriod(data = { name: 'Additional DSE work', start: '', end: '', removable: true }) {
+      const row = document.createElement('div');
+      row.className = 'period';
+      row.innerHTML = `
+        <label class="period-name">Work period description
+          <input class="period-label" type="text" autocomplete="off" value="${escapeHtml(data.name)}" placeholder="e.g. Evening work">
+        </label>
+        <label>Start time
+          <input class="period-start" type="time" value="${escapeHtml(data.start)}">
+        </label>
+        <label>End time
+          <input class="period-end" type="time" value="${escapeHtml(data.end)}">
+        </label>
+        ${data.removable ? '<button class="remove" type="button" title="Remove work period" aria-label="Remove work period">×</button>' : '<span aria-hidden="true"></span>'}`;
+      row.querySelectorAll('input').forEach(input => input.addEventListener('input', assess));
+      const removeButton = row.querySelector('.remove');
+      if (removeButton) removeButton.addEventListener('click', () => { row.remove(); assess(); });
+      periods.appendChild(row);
+    }
+
+    function readPeriods() {
+      const values = [];
+      const invalid = [];
+      periods.querySelectorAll('.period').forEach((row, index) => {
+        const name = row.querySelector('.period-label').value.trim() || `Work period ${index + 1}`;
+        const start = row.querySelector('.period-start').value;
+        const end = row.querySelector('.period-end').value;
+        if (!start && !end) return;
+        const startMinutes = toMinutes(start);
+        const endMinutes = toMinutes(end);
+        if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+          invalid.push(`Check the times for ${name}.`);
+          return;
+        }
+        values.push({ name, start, end, minutes: endMinutes - startMinutes });
+      });
+      return { values, invalid };
+    }
+
+    function setResult(type, label, title, explanation) {
+      resultBox.className = `result${type ? ` ${type}` : ''}`;
+      resultLabel.textContent = label;
+      resultTitle.textContent = title;
+      resultExplanation.textContent = explanation;
+    }
+
+    function assess() {
+      const { values, invalid } = readPeriods();
+      const enteredRows = [...periods.querySelectorAll('.period')].filter(row => row.querySelector('.period-start').value || row.querySelector('.period-end').value).length;
+      const longest = values.length ? Math.max(...values.map(period => period.minutes)) : 0;
+      const total = values.reduce((sum, period) => sum + period.minutes, 0);
+      periodCount.textContent = values.length;
+      longestValue.textContent = values.length ? formatMinutes(longest) : '—';
+      totalValue.textContent = values.length ? formatMinutes(total) : '—';
+      errorMessage.textContent = invalid.join(' ');
+
+      if (invalid.length || (enteredRows && !values.length)) {
+        setResult('invalid', 'Times need checking', 'Cannot complete assessment', 'Each recorded work period needs a start time that is earlier than its end time.');
+        return { values, invalid, longest, total, isUser: false };
+      }
+      if (!values.length) {
+        setResult('', 'Awaiting schedule', 'Enter valid work times', 'The assessment will update as you add DSE work periods.');
+        return { values, invalid, longest, total, isUser: false };
+      }
+
+      const continuousCriterion = longest >= 240;
+      const cumulativeCriterion = total >= 360;
+      const isUser = continuousCriterion || cumulativeCriterion;
+      if (isUser) {
+        const reasons = [];
+        if (continuousCriterion) reasons.push('a continuous period of 4 hours or more');
+        if (cumulativeCriterion) reasons.push('a cumulative total of 6 hours or more');
+        setResult('user', 'Criterion met', 'DSE user: Yes', `Based on the times entered, the person meets ${reasons.join(' and ')}.`);
+      } else {
+        setResult('', 'Criterion not met', 'DSE user: No', 'Based on the times entered, neither the 4-hour continuous nor the 6-hour cumulative daily criterion is met.');
+      }
+      return { values, invalid, longest, total, isUser, continuousCriterion, cumulativeCriterion };
+    }
+
+    function resetForm() {
+      periods.innerHTML = '';
+      initialPeriods.forEach(createPeriod);
+      personName.value = '';
+      assessmentDate.value = new Date().toISOString().slice(0, 10);
+      assess();
+    }
+
+    function exportPdf() {
+      const assessment = assess();
+      if (assessment.invalid.length || !assessment.values.length) {
+        errorMessage.textContent = assessment.invalid.length ? assessment.invalid.join(' ') : 'Enter at least one valid work period before exporting.';
+        return;
+      }
+
+      const person = personName.value.trim() || 'Unknown';
+      const isoDate = assessmentDate.value || new Date().toISOString().slice(0, 10);
+      const exportDate = isoDate.replaceAll('-', '');
+      const exportName = person.replace(/[\\/:*?"<>|]/g, '-');
+      const exportTitle = `${exportDate}-${exportName}`;
+      const originalTitle = document.title;
+      const displayDate = new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+      const answer = assessment.isUser ? 'Yes' : 'No';
+      const continuousReason = assessment.continuousCriterion ? 'Yes' : 'No';
+      const cumulativeReason = assessment.cumulativeCriterion ? 'Yes' : 'No';
+      const periodRows = assessment.values.map(period => `
+        <tr>
+          <td>${escapeHtml(period.name)}</td>
+          <td>${escapeHtml(period.start)}</td>
+          <td>${escapeHtml(period.end)}</td>
+          <td>${formatMinutes(period.minutes)}</td>
+        </tr>`).join('');
+
+      const report = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(exportTitle)}</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #172033; font: 11pt/1.5 Arial, sans-serif; }
+    h1 { margin: 0 0 5mm; font-size: 22pt; letter-spacing: -.02em; }
+    h2 { margin: 9mm 0 3mm; padding-bottom: 2mm; border-bottom: 1px solid #9ca9b8; font-size: 14pt; }
+    .subtitle { margin: 0; color: #526277; }
+    .details { width: 100%; margin-top: 7mm; border-collapse: collapse; }
+    .details th, .details td { padding: 3mm; border: 1px solid #cdd6e0; text-align: left; }
+    .details th { width: 34%; color: #405168; background: #f1f5f8; font-weight: 700; }
+    .result { margin-top: 7mm; padding: 5mm; border: 1px solid ${assessment.isUser ? '#87c9aa' : '#e2c66f'}; background: ${assessment.isUser ? '#eaf7ef' : '#fff8e6'}; }
+    .result strong { font-size: 16pt; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 3mm; border: 1px solid #cdd6e0; text-align: left; vertical-align: top; }
+    th { color: #405168; background: #f1f5f8; font-size: 9.5pt; text-transform: uppercase; letter-spacing: .04em; }
+    .footer { margin-top: 9mm; color: #607087; font-size: 9pt; }
+    .actions { margin-top: 8mm; }
+    button { padding: 2.5mm 5mm; border: 1px solid #607087; border-radius: 3px; background: #fff; font: inherit; cursor: pointer; }
+    @media print { .actions { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>DSE User Assessment Result</h1>
+  <p class="subtitle">Assessment based on the display screen equipment working-time criteria in Cap. 509B.</p>
+
+  <table class="details">
+    <tr><th>Person assessed</th><td>${escapeHtml(person)}</td></tr>
+    <tr><th>Assessment date</th><td>${escapeHtml(displayDate)}</td></tr>
+  </table>
+
+  <section class="result">
+    <div>DSE user</div>
+    <strong>${answer}</strong>
+  </section>
+
+  <h2>Assessment summary</h2>
+  <table>
+    <tr><th>Longest continuous DSE work</th><td>${formatMinutes(assessment.longest)} ${continuousReason === 'Yes' ? '(meets 4-hour criterion)' : ''}</td></tr>
+    <tr><th>Cumulative DSE work</th><td>${formatMinutes(assessment.total)} ${cumulativeReason === 'Yes' ? '(meets 6-hour criterion)' : ''}</td></tr>
+    <tr><th>Periods recorded</th><td>${assessment.values.length}</td></tr>
+  </table>
+
+  <h2>DSE work periods</h2>
+  <table>
+    <thead><tr><th>Period</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+    <tbody>${periodRows}</tbody>
+  </table>
+
+  <p class="footer">This report was generated in the browser. Assessment data is not saved by this tool.</p>
+  <div class="actions"><button onclick="window.print()">Print / Save as PDF</button></div>
+</body>
+</html>`;
+      document.title = exportTitle;
+      const printFrame = document.getElementById('printFrame');
+      printFrame.onload = () => {
+        const frameWindow = printFrame.contentWindow;
+        const restoreTitle = () => { document.title = originalTitle; };
+        frameWindow.addEventListener('afterprint', restoreTitle, { once: true });
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(restoreTitle, 30000);
+      };
+      printFrame.srcdoc = report;
+    }
+
+    document.getElementById('addPeriod').addEventListener('click', () => { createPeriod(); assess(); });
+    document.getElementById('exportPdf').addEventListener('click', exportPdf);
+    document.getElementById('clearForm').addEventListener('click', resetForm);
+    personName.addEventListener('input', assess);
+    assessmentDate.addEventListener('input', assess);
+    resetForm();
+  </script>
+</body>
+</html>

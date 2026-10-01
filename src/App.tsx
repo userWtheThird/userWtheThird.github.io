@@ -15,32 +15,35 @@ const PROJECTS = [
   {
     title: 'Ionizing Radiation Program',
     subtitle: 'Radiation safety management system',
-    description:
-      'A standalone HTML application for managing ionizing radiation safety — sealed/unsealed source inventory, leak tests, swipe tests, dosimetry tracking, waste disposal, and regulatory compliance reporting.',
-    tags: ['HTML', 'JavaScript', 'Standalone', 'SharePoint-ready'],
+    description: 'Manage sources, tests, dosimetry, waste, and compliance reporting in one standalone workspace.',
+    tags: ['HTML', 'JavaScript', 'SharePoint-ready'],
     status: 'In Progress',
+    preview: '/previews/ionizing-radiation-program.svg',
+    previewAlt: 'Preview of the Ionizing Radiation Program source inventory dashboard',
     link: 'https://userWtheThird.github.io/ionizing-radiation-program.html',
     repo: 'https://github.com/userWtheThird/userWtheThird.github.io',
   },
   {
     title: 'HSEO Portal Prototype',
     subtitle: 'Full-stack safety management platform',
-    description:
-      'A multi-role portal for managing radiation safety, lab inspections, hazardous waste, water quality, indoor environmental quality, hot-work permits, and laser compliance across a university campus.',
-    tags: ['React', 'TypeScript', 'Tailwind CSS', 'Vite', 'Multi-role RBAC'],
+    description: 'A multi-role campus portal for radiation, laboratory, waste, water, environmental, and permit workflows.',
+    tags: ['React', 'TypeScript', 'Multi-role RBAC'],
     status: 'In Progress',
+    preview: '/previews/hseo-portal.svg',
+    previewAlt: 'Preview of the HSEO Portal safety overview dashboard',
     link: 'https://userWtheThird.github.io/HSEO-Portal-Prototype/',
     repo: 'https://github.com/userWtheThird/HSEO-Portal-Prototype',
   },
   {
-    title: 'My CPD',
-    subtitle: 'Continuing Professional Development tracker',
-    description:
-      'A personal CPD tracker for logging professional development activities, tracking hours, and curating reference links to useful resources and sites.',
-    tags: ['React', 'TypeScript', 'Tailwind CSS', 'Vite', 'localStorage'],
-    status: 'In Progress',
-    link: 'https://userWtheThird.github.io/my-CPD/',
-    repo: 'https://github.com/userWtheThird/my-CPD',
+    title: 'DSE User Assessment',
+    subtitle: 'Display screen equipment working-time assessment',
+    description: 'A private DSE working-time assessment with flexible periods and a print-ready PDF result.',
+    tags: ['HTML', 'JavaScript', 'PDF export'],
+    status: 'Available',
+    preview: '/previews/dse-user-assessment.svg',
+    previewAlt: 'Preview of the DSE User Assessment working-day schedule and result',
+    link: '/dse-user-assessment.html',
+    repo: 'https://github.com/userWtheThird/userWtheThird.github.io',
   },
 ];
 
@@ -195,56 +198,54 @@ function About() {
 function Work() {
   return (
     <section id="work" className="py-32 px-6 bg-grey-900/40">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h2 className="text-white text-3xl font-bold tracking-tight mb-2">Work</h2>
         <div className="w-12 h-px bg-grey-700 mb-10" />
 
-        <div className="space-y-8">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {PROJECTS.map((p) => (
             <article
               key={p.title}
-              className="group border border-grey-800 rounded-sm p-6 hover:border-grey-600 transition-colors bg-grey-900/60"
+              className="group flex flex-col overflow-hidden border border-grey-800 rounded-sm bg-grey-900/60 transition-colors hover:border-grey-600"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-white text-xl font-semibold">{p.title}</h3>
-                  <p className="text-grey-500 text-sm mt-0.5">{p.subtitle}</p>
-                </div>
-                <span className="shrink-0 ml-4 px-2.5 py-0.5 text-[11px] font-mono font-medium border border-grey-700 text-grey-400 rounded-sm">
-                  {p.status}
-                </span>
-              </div>
+              <a href={p.link} className="block overflow-hidden border-b border-grey-800 bg-grey-950" aria-label={`Open ${p.title}`}>
+                <img
+                  src={p.preview}
+                  alt={p.previewAlt}
+                  loading="lazy"
+                  className="aspect-[5/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+              </a>
 
-              <p className="text-grey-400 text-sm leading-relaxed mb-4">
-                {p.description}
-              </p>
-
-              <div className="flex flex-wrap gap-2 mb-5">
-                {p.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-0.5 text-[11px] font-mono bg-grey-800 text-grey-400 rounded-sm"
-                  >
-                    {t}
+              <div className="flex flex-1 flex-col p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{p.title}</h3>
+                    <p className="mt-0.5 text-sm text-grey-500">{p.subtitle}</p>
+                  </div>
+                  <span className="shrink-0 px-2 py-0.5 text-[10px] font-mono font-medium border border-grey-700 text-grey-400 rounded-sm">
+                    {p.status}
                   </span>
-                ))}
-              </div>
+                </div>
 
-              <div className="flex items-center gap-5">
-                <a
-                  href={p.link}
-                  className="inline-flex items-center gap-1.5 text-sm text-white font-medium hover:text-grey-300 transition-colors"
-                >
-                  <ExternalLink size={14} /> Live Demo
-                </a>
-                <a
-                  href={p.repo}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-grey-400 hover:text-white transition-colors"
-                >
-                  <Github size={14} /> Source
-                </a>
+                <p className="mb-3 text-sm leading-relaxed text-grey-400">{p.description}</p>
+
+                <div className="mb-4 flex flex-wrap gap-1.5">
+                  {p.tags.map((t) => (
+                    <span key={t} className="rounded-sm bg-grey-800 px-2 py-0.5 text-[10px] font-mono text-grey-400">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-auto flex items-center gap-5">
+                  <a href={p.link} className="inline-flex items-center gap-1.5 text-sm font-medium text-white transition-colors hover:text-grey-300">
+                    <ExternalLink size={14} /> Live Demo
+                  </a>
+                  <a href={p.repo} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-grey-400 transition-colors hover:text-white">
+                    <Github size={14} /> Source
+                  </a>
+                </div>
               </div>
             </article>
           ))}
